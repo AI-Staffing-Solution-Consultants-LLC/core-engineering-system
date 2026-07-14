@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  track-a-control-loop:
+    build: ./track-a
+    image: track-a-control-loop:latest
+    container_name: track-a-control-loop
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - RAG_CORPUS_PATH=/rag/docs
+      - POLICY_DIR=/policy
+      - LEDGER_PATH=/var/log/ledger
+      - TRACK_B_URL=http://track-b-actuator:8081
+    volumes:
+      - ./rag:/rag/docs:ro
+      - ./policy:/policy:ro
+      - ledger-a:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      track-b-actuator:
+        condition: service_healthy
+
+  track-b-actuator:
+    build: ./track-b
+    image: track-b-actuator:latest
+    container_name: track-b-actuator
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - TOOL_ALLOWLIST=/policy/tool-allowlist.txt
+      - LEDGER_PATH=/var/log/ledger
+      - TRACK_A_URL=http://track-a-control-loop:8080
+    volumes:
+      - ./policy:/policy:ro
+      - ledger-b:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  ledger-a:
+  ledger-b:

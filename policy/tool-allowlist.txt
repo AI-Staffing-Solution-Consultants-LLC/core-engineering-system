@@ -1,0 +1,28 @@
+kubectl get pods
+kubectl get nodes
+kubectl get namespaces
+kubectl describe pod
+kubectl describe node
+kubectl logs
+kubectl top pods
+kubectl top nodes
+kubectl events
+gcloud run services list
+gcloud run services describe
+gcloud logging read
+gcloud monitoring metrics list
+gcloud secrets versions access
+docker ps
+docker stats
+docker logs
+terraform plan
+terraform validate
+terraform state list
+terraform show
+terraform output
+git status
+git log
+git diff
+git branch
+git remote show
+curl
