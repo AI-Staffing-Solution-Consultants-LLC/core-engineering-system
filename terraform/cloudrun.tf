@@ -105,10 +105,6 @@ resource "google_cloud_run_v2_service" "track_b" {
       }
 
       env {
-        name  = "TRACK_A_URL"
-        value = google_cloud_run_v2_service.track_a.uri
-      }
-      env {
         name  = "LEDGER_PATH"
         value = "/var/log/ledger"
       }

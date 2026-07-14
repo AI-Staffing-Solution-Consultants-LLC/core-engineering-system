@@ -22,7 +22,4 @@ RUN mkdir -p /var/log/ledger /rag/docs /policy && \
 USER coreengine
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"]
-
 CMD ["python", "-u", "main.py"]
