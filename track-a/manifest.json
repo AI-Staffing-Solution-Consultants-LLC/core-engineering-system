@@ -1,0 +1,45 @@
+{
+  "module": "track-a",
+  "path": "track-a",
+  "generated_at": "2026-07-20T00:17:23.470706+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 7,
+  "files": [
+    {
+      "file": "track-a/__init__.py",
+      "sha256": "375d642200ea3c6b",
+      "size_bytes": 1419
+    },
+    {
+      "file": "track-a/requirements.txt",
+      "sha256": "3d6dcfe635705a34",
+      "size_bytes": 47
+    },
+    {
+      "file": "track-a/manifest.json",
+      "sha256": "614caf6f6a49603c",
+      "size_bytes": 962
+    },
+    {
+      "file": "track-a/main.py",
+      "sha256": "b0faf06aa9e1a166",
+      "size_bytes": 13223
+    },
+    {
+      "file": "track-a/claw_router_client.py",
+      "sha256": "c5c4fc86fe1e7ea3",
+      "size_bytes": 3769
+    },
+    {
+      "file": "track-a/Dockerfile",
+      "sha256": "dc6cbbab24dcd9a4",
+      "size_bytes": 791
+    },
+    {
+      "file": "track-a/opa_eval.py",
+      "sha256": "1caeeb728141869c",
+      "size_bytes": 4545
+    }
+  ]
+}

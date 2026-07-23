@@ -1,0 +1,40 @@
+{
+  "module": "policy",
+  "path": "policy",
+  "generated_at": "2026-07-20T00:17:23.466232+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 6,
+  "files": [
+    {
+      "file": "policy/tool-allowlist.txt",
+      "sha256": "db05dbaa6e187cd3",
+      "size_bytes": 482
+    },
+    {
+      "file": "policy/log-reasoning-steps.rego",
+      "sha256": "8d892032b03c01f3",
+      "size_bytes": 314
+    },
+    {
+      "file": "policy/require-namespace-scope.rego",
+      "sha256": "f8198742e231e95e",
+      "size_bytes": 284
+    },
+    {
+      "file": "policy/manifest.json",
+      "sha256": "a219aa6bca8f70d6",
+      "size_bytes": 888
+    },
+    {
+      "file": "policy/deny-broad-write.rego",
+      "sha256": "2cc47efa5335535e",
+      "size_bytes": 291
+    },
+    {
+      "file": "policy/deny-destroy-prod.rego",
+      "sha256": "ed5ddeaf8b8403f5",
+      "size_bytes": 312
+    }
+  ]
+}

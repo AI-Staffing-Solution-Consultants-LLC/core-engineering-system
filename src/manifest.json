@@ -1,0 +1,25 @@
+{
+  "module": "src",
+  "path": "src",
+  "generated_at": "2026-07-20T00:17:23.469528+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 3,
+  "files": [
+    {
+      "file": "src/scraper.js",
+      "sha256": "e4dbe73e04b6ebab",
+      "size_bytes": 7083
+    },
+    {
+      "file": "src/manifest.json",
+      "sha256": "3f3ba4a9cdf56bb2",
+      "size_bytes": 488
+    },
+    {
+      "file": "src/router.js",
+      "sha256": "2b8cb3ad2b3f8df4",
+      "size_bytes": 18886
+    }
+  ]
+}

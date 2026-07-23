@@ -27,28 +27,46 @@ from flask import Flask, Response, jsonify, request
 # Configuration
 # ---------------------------------------------------------------------------
 RAG_CORPUS_PATH = Path(os.environ.get("RAG_CORPUS_PATH", "/rag/docs"))
-POLICY_DIR      = Path(os.environ.get("POLICY_DIR", "/policy"))
-LEDGER_PATH     = Path(os.environ.get("LEDGER_PATH", "/var/log/ledger"))
-TRACK_B_URL     = os.environ.get("TRACK_B_URL", "http://track-b-actuator:8081")
+POLICY_DIR = Path(os.environ.get("POLICY_DIR", "/policy"))
+LEDGER_PATH = Path(os.environ.get("LEDGER_PATH", "/var/log/ledger"))
+TRACK_B_URL = os.environ.get("TRACK_B_URL", "http://track-b-actuator:8081")
 
 LEDGER_PATH.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("track-a")
+
 
 # ---------------------------------------------------------------------------
 # RAG Context Loader
 # ---------------------------------------------------------------------------
 def load_rag_context() -> dict[str, str]:
-    """Load all Markdown files from the RAG corpus into an in-memory index."""
+    """Load all Markdown files from the RAG corpus into an in-memory index.
+
+    Keys are namespace-aware: root-level files use their filename, while
+    files in subdirectories use their relative path (e.g.
+    'openviking/SOP-001.md').  This prevents collisions between same-named
+    files in different namespaces and allows namespace-aware lookups.
+    """
     corpus: dict[str, str] = {}
     if not RAG_CORPUS_PATH.is_dir():
-        logger.warning("RAG corpus path %s not found or not a directory", RAG_CORPUS_PATH)
+        logger.warning(
+            "RAG corpus path %s not found or not a directory", RAG_CORPUS_PATH
+        )
         return corpus
     for md_file in RAG_CORPUS_PATH.rglob("*.md"):
         try:
-            corpus[md_file.name] = md_file.read_text(encoding="utf-8")
+            # Compute namespace-aware key relative to corpus root
+            try:
+                rel = md_file.relative_to(RAG_CORPUS_PATH)
+            except ValueError:
+                rel = md_file.name  # fallback: bare filename
+            # Root-level files keep bare filename; subdir files get relative path
+            key = str(rel)
+            corpus[key] = md_file.read_text(encoding="utf-8")
         except Exception as exc:
             logger.error("Failed to read RAG chunk %s: %s", md_file, exc)
     logger.info("Loaded %d RAG documents", len(corpus))
@@ -66,6 +84,7 @@ def search_rag(corpus: dict[str, str], query: str, top_k: int = 3) -> list[str]:
     results.sort(key=lambda x: x[1], reverse=True)
     return [c for c, _ in results[:top_k]]
 
+
 # ---------------------------------------------------------------------------
 # Policy Loader
 # ---------------------------------------------------------------------------
@@ -79,6 +98,7 @@ def load_policies() -> list[str]:
     logger.info("Loaded %d policy files", len(policies))
     return policies
 
+
 # ---------------------------------------------------------------------------
 # Tamper-Evident Ledger
 # ---------------------------------------------------------------------------
@@ -88,7 +108,9 @@ def _build_chain_hash(prev_entry: str | None, entry: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-_last_hash: str | None = None  # in-memory chain head (restored from last file on startup)
+_last_hash: str | None = (
+    None  # in-memory chain head (restored from last file on startup)
+)
 
 
 def write_ledger_entry(event_type: str, payload: dict) -> str:
@@ -100,7 +122,9 @@ def write_ledger_entry(event_type: str, payload: dict) -> str:
         "type": event_type,
         "payload": payload,
     }
-    entry["chain_hash"] = _build_chain_hash(_last_hash, json.dumps(entry, sort_keys=True))
+    entry["chain_hash"] = _build_chain_hash(
+        _last_hash, json.dumps(entry, sort_keys=True)
+    )
     _last_hash = entry["chain_hash"]
 
     # Write to daily rotating ledger file
@@ -127,27 +151,36 @@ def react_plan(query: str, rag_corpus: dict[str, str]) -> dict:
     steps = []
 
     # Log the reasoning entry
-    reasoning_ref = write_ledger_entry("reasoning_start", {
-        "plan_id": plan_id,
-        "query": query,
-    })
+    reasoning_ref = write_ledger_entry(
+        "reasoning_start",
+        {
+            "plan_id": plan_id,
+            "query": query,
+        },
+    )
     logger.info("Plan %s: beginning ReAct loop for '%s'", plan_id, query)
 
     # Step 1 — Context retrieval
     ctx_chunks = search_rag(rag_corpus, query, top_k=3)
-    write_ledger_entry("context_retrieval", {
-        "plan_id": plan_id,
-        "chunks_found": len(ctx_chunks),
-        "query": query,
-    })
+    write_ledger_entry(
+        "context_retrieval",
+        {
+            "plan_id": plan_id,
+            "chunks_found": len(ctx_chunks),
+            "query": query,
+        },
+    )
 
     # Step 2 — Hypothesis formation (rule-based placeholder)
     hypothesis = form_hypothesis(query, ctx_chunks)
-    write_ledger_entry("hypothesis", {
-        "plan_id": plan_id,
-        "hypothesis": hypothesis,
-        "reasoning_log_ref": reasoning_ref,
-    })
+    write_ledger_entry(
+        "hypothesis",
+        {
+            "plan_id": plan_id,
+            "hypothesis": hypothesis,
+            "reasoning_log_ref": reasoning_ref,
+        },
+    )
 
     # Step 3 — Action plan generation
     action_requests = generate_action_plan(query, hypothesis)
@@ -161,18 +194,24 @@ def react_plan(query: str, rag_corpus: dict[str, str]) -> dict:
 
         # After each action, re-evaluate — does the result change the hypothesis?
         if step.get("result", {}).get("error"):
-            write_ledger_entry("plan_adjustment", {
-                "plan_id": plan_id,
-                "step": idx,
-                "reason": f"Action failed: {step['result']['error']}",
-                "reasoning_log_ref": reasoning_ref,
-            })
+            write_ledger_entry(
+                "plan_adjustment",
+                {
+                    "plan_id": plan_id,
+                    "step": idx,
+                    "reason": f"Action failed: {step['result']['error']}",
+                    "reasoning_log_ref": reasoning_ref,
+                },
+            )
 
-    write_ledger_entry("reasoning_complete", {
-        "plan_id": plan_id,
-        "total_steps": len(steps),
-        "reasoning_log_ref": reasoning_ref,
-    })
+    write_ledger_entry(
+        "reasoning_complete",
+        {
+            "plan_id": plan_id,
+            "total_steps": len(steps),
+            "reasoning_log_ref": reasoning_ref,
+        },
+    )
 
     return {
         "plan_id": plan_id,
@@ -206,38 +245,89 @@ def generate_action_plan(query: str, hypothesis: str) -> list[dict]:
     query_lower = query.lower()
 
     # Always start with status check
-    actions.append({
-        "tool": "kubectl get pods",
-        "args": [],
-        "reason": "Establish baseline pod status",
-    })
+    actions.append(
+        {
+            "tool": "kubectl get pods",
+            "args": [],
+            "reason": "Establish baseline pod status",
+        }
+    )
 
     if "latency" in query_lower:
-        actions.append({"tool": "kubectl top pods", "args": [], "reason": "Check resource usage"})
-        actions.append({"tool": "kubectl logs", "args": ["--tail=100"], "reason": "Inspect recent log output"})
+        actions.append(
+            {"tool": "kubectl top pods", "args": [], "reason": "Check resource usage"}
+        )
+        actions.append(
+            {
+                "tool": "kubectl logs",
+                "args": ["--tail=100"],
+                "reason": "Inspect recent log output",
+            }
+        )
     elif "crash" in query_lower or "error" in query_lower:
-        actions.append({"tool": "kubectl logs", "args": ["--previous"], "reason": "Inspect logs from previous crashed container"})
-        actions.append({"tool": "kubectl describe pod", "args": [], "reason": "Inspect pod events and status"})
+        actions.append(
+            {
+                "tool": "kubectl logs",
+                "args": ["--previous"],
+                "reason": "Inspect logs from previous crashed container",
+            }
+        )
+        actions.append(
+            {
+                "tool": "kubectl describe pod",
+                "args": [],
+                "reason": "Inspect pod events and status",
+            }
+        )
     elif "deploy" in query_lower:
-        actions.append({"tool": "gcloud run services list", "args": [], "reason": "List deployed services"})
-        actions.append({"tool": "kubectl events", "args": [], "reason": "Check recent cluster events"})
+        actions.append(
+            {
+                "tool": "gcloud run services list",
+                "args": [],
+                "reason": "List deployed services",
+            }
+        )
+        actions.append(
+            {
+                "tool": "kubectl events",
+                "args": [],
+                "reason": "Check recent cluster events",
+            }
+        )
     else:
-        actions.append({"tool": "kubectl top nodes", "args": [], "reason": "Check node-level resource usage"})
-        actions.append({"tool": "kubectl events", "args": [], "reason": "Check recent cluster events"})
+        actions.append(
+            {
+                "tool": "kubectl top nodes",
+                "args": [],
+                "reason": "Check node-level resource usage",
+            }
+        )
+        actions.append(
+            {
+                "tool": "kubectl events",
+                "args": [],
+                "reason": "Check recent cluster events",
+            }
+        )
 
     return actions
 
 
-def execute_action_via_track_b(action: dict, reasoning_ref: str, plan_id: str, step_idx: int) -> dict:
+def execute_action_via_track_b(
+    action: dict, reasoning_ref: str, plan_id: str, step_idx: int
+) -> dict:
     """Send an action request to Track B and record the result."""
-    write_ledger_entry("action_request", {
-        "plan_id": plan_id,
-        "step": step_idx,
-        "tool": action["tool"],
-        "args": action.get("args", []),
-        "reason": action.get("reason", ""),
-        "reasoning_log_ref": reasoning_ref,
-    })
+    write_ledger_entry(
+        "action_request",
+        {
+            "plan_id": plan_id,
+            "step": step_idx,
+            "tool": action["tool"],
+            "args": action.get("args", []),
+            "reason": action.get("reason", ""),
+            "reasoning_log_ref": reasoning_ref,
+        },
+    )
 
     try:
         resp = requests.post(
@@ -255,13 +345,16 @@ def execute_action_via_track_b(action: dict, reasoning_ref: str, plan_id: str, s
         result = {"error": str(exc), "output": ""}
         logger.error("Track B call failed for step %d: %s", step_idx, exc)
 
-    write_ledger_entry("action_result", {
-        "plan_id": plan_id,
-        "step": step_idx,
-        "tool": action["tool"],
-        "result": result,
-        "reasoning_log_ref": reasoning_ref,
-    })
+    write_ledger_entry(
+        "action_result",
+        {
+            "plan_id": plan_id,
+            "step": step_idx,
+            "tool": action["tool"],
+            "result": result,
+            "reasoning_log_ref": reasoning_ref,
+        },
+    )
 
     return {
         "step": step_idx,
@@ -275,6 +368,7 @@ def execute_action_via_track_b(action: dict, reasoning_ref: str, plan_id: str, s
 # ---------------------------------------------------------------------------
 # HTTP API
 # ---------------------------------------------------------------------------
+
 
 @app.route("/healthz")
 def healthz():
@@ -316,16 +410,18 @@ def ledger():
 
 @app.route("/", methods=["GET"])
 def index():
-    return jsonify({
-        "service": "track-a-control-loop",
-        "version": "0.1.0",
-        "model": "C-P-A Control Loop",
-        "endpoints": {
-            "/healthz": "GET — health check",
-            "/plan": "POST — submit query for ReAct planning",
-            "/ledger": "GET — retrieve tamper-evident ledger entries",
-        },
-    })
+    return jsonify(
+        {
+            "service": "track-a-control-loop",
+            "version": "0.1.0",
+            "model": "C-P-A Control Loop",
+            "endpoints": {
+                "/healthz": "GET — health check",
+                "/plan": "POST — submit query for ReAct planning",
+                "/ledger": "GET — retrieve tamper-evident ledger entries",
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +431,9 @@ if __name__ == "__main__":
     # Pre-load RAG corpus and policies in background
     rag = load_rag_context()
     policies = load_policies()
-    logger.info("Track A starting — %d RAG docs, %d policies loaded", len(rag), len(policies))
+    logger.info(
+        "Track A starting — %d RAG docs, %d policies loaded", len(rag), len(policies)
+    )
 
     # Restore ledger chain hash from last entry
     ledger_files = sorted(LEDGER_PATH.glob("ledger-*.jsonl"))

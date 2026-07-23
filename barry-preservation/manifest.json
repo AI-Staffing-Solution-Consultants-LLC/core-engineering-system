@@ -1,0 +1,24 @@
+{
+  "image_name": "barry-do-lobe-preservation",
+  "image_tag": "preserved-as-is",
+  "base_image": "python:3.12-slim",
+  "layers": [
+    "python:3.12-slim (base debian:bookworm-slim)",
+    "RUN groupadd -r coreengine && useradd -r -g coreengine -u 1000 coreengine",
+    "WORKDIR /app",
+    "USER coreengine"
+  ],
+  "environment": {
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PRESERVATION_MODE": "as-is"
+  },
+  "exposed_ports": [
+    8080
+  ],
+  "entrypoint": ["python", "-u", "main.py"],
+  "preservation_note": "ZERO CODE MODIFICATION — this image is a reproducible build manifest only. The original Barry DO-Lobe container is preserved as-is via docker save/load. No application code is modified, copied, or altered.",
+  "preservation_timestamp": "2026-07-21T00:00:00Z",
+  "target_platform": "DigitalOcean App Platform / Droplet",
+  "migration_notes": "For lead-generation container migration from DO to target platform. Use package.sh to document the container pull, export as tarball, and save this manifest alongside it."
+}

@@ -1,0 +1,9 @@
+{
+  "name": "agency-agents",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local devDependency container for @agency-agents/cli (NEXUS-Sprint Phase-5)",
+  "devDependencies": {
+    "@agency-agents/cli": "latest"
+  }
+}

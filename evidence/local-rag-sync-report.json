@@ -1,0 +1,29 @@
+{
+  "execution_id": "88c66e1c8a7e3f71",
+  "timestamp": "2026-07-20T00:17:23.484012+00:00",
+  "phase": "Step 4 \u2014 Provision and Seed OpenViking RAG Memory",
+  "tool": "local-rag-sync (Python workspace walker)",
+  "arch_note": "src/scraper.js uses Cloudflare Browser Rendering binding (env.EDGE_BROWSER) \u2014 cannot run locally. This shim provides equivalent workspace doc discovery, manifest generation, and RAG index seeding.",
+  "arch_gap": "No local vector database exists. RAG corpus seeded into rag/docs/index.json for Track A Control Loop ingestion. Cloudflare Workers KV (OBSERVABILITY_STATE) bindings are placeholders \u2014 real KV IDs required for edge deployment.",
+  "results": {
+    "files_discovered": 47,
+    "module_directories": 10,
+    "manifests_generated": 10,
+    "rag_index_entries": 47,
+    "rag_bytes_indexed": 162619,
+    "rag_index_path": "rag/docs/index.json"
+  },
+  "manifests_created": [
+    "./manifest.json",
+    "agency-agents/daemon/manifest.json",
+    "agency-agents/manifest.json",
+    "mcp/manifest.json",
+    "mcp/tools/manifest.json",
+    "policy/manifest.json",
+    "src/manifest.json",
+    "tests/manifest.json",
+    "track-a/manifest.json",
+    "track-b/manifest.json"
+  ],
+  "hash_of_evidence": "9f607702e5bd52faa596d2d8a5e80d811d42e6533495da8cac4e9c15f060b8b6"
+}

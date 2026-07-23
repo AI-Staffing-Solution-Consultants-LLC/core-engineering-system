@@ -1,0 +1,70 @@
+{
+  "module": "_",
+  "path": ".",
+  "generated_at": "2026-07-20T00:17:23.464695+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 12,
+  "files": [
+    {
+      "file": ".gitignore",
+      "sha256": "2bb07e3f6e6469f2",
+      "size_bytes": 380
+    },
+    {
+      "file": "cloudbuild.yaml",
+      "sha256": "973c0c43f5770d91",
+      "size_bytes": 17690
+    },
+    {
+      "file": "README.md",
+      "sha256": "64af928fc57c9091",
+      "size_bytes": 8404
+    },
+    {
+      "file": "conftest.py",
+      "sha256": "2b4e3cb4879e5edc",
+      "size_bytes": 1225
+    },
+    {
+      "file": "docker-compose.yml",
+      "sha256": "d88eea0ee435c040",
+      "size_bytes": 2321
+    },
+    {
+      "file": ".env.example",
+      "sha256": "8856be1b43f5e2e5",
+      "size_bytes": 992
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "82472a4cdc5400df",
+      "size_bytes": 1438
+    },
+    {
+      "file": "CEM_Update.txt",
+      "sha256": "ff0ffc6c44c4bcdc",
+      "size_bytes": 4256
+    },
+    {
+      "file": "wrangler.toml",
+      "sha256": "22124a4014dcde6a",
+      "size_bytes": 3639
+    },
+    {
+      "file": "manifest_factory.py.txt",
+      "sha256": "0f98bd67053f190e",
+      "size_bytes": 3067
+    },
+    {
+      "file": "infisical_vault_sync.sh",
+      "sha256": "cf1fe708b9d193a1",
+      "size_bytes": 2242
+    },
+    {
+      "file": "AGENTS.md",
+      "sha256": "ec0ec5a8ce59444d",
+      "size_bytes": 8636
+    }
+  ]
+}

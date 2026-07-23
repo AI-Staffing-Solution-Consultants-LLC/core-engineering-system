@@ -1,0 +1,25 @@
+{
+  "module": "tests",
+  "path": "tests",
+  "generated_at": "2026-07-20T00:17:23.465354+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 3,
+  "files": [
+    {
+      "file": "tests/allowlist-mutation-test.py",
+      "sha256": "bc83e85521355c98",
+      "size_bytes": 13323
+    },
+    {
+      "file": "tests/manifest.json",
+      "sha256": "65cb9702fbe9710e",
+      "size_bytes": 525
+    },
+    {
+      "file": "tests/ledger-chain-test.py",
+      "sha256": "e9a4fefe7d31d46a",
+      "size_bytes": 8986
+    }
+  ]
+}

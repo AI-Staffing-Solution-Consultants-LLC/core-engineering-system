@@ -1,0 +1,30 @@
+{
+  "module": "agency-agents_daemon",
+  "path": "agency-agents/daemon",
+  "generated_at": "2026-07-20T00:17:23.468524+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 4,
+  "files": [
+    {
+      "file": "agency-agents/daemon/manifest.json",
+      "sha256": "a0afd14f36dc7745",
+      "size_bytes": 692
+    },
+    {
+      "file": "agency-agents/daemon/teams.json",
+      "sha256": "fc9fa02b64d7024d",
+      "size_bytes": 1649
+    },
+    {
+      "file": "agency-agents/daemon/main.py",
+      "sha256": "d79463c1dc20a751",
+      "size_bytes": 7961
+    },
+    {
+      "file": "agency-agents/daemon/Dockerfile",
+      "sha256": "c66b85c4418ec06c",
+      "size_bytes": 949
+    }
+  ]
+}

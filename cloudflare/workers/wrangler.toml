@@ -1,0 +1,34 @@
+# WebRTC Signaling Worker — wrangler.toml
+# Deploys the WebRTC signaling Worker to Cloudflare Workers.
+# Uses Durable Objects for ephemeral session state.
+#
+# Deploy gate: wrangler deploy is [HUMAN-APPROVAL-REQUIRED].
+# Do NOT wrangler deploy without explicit approval.
+#
+# Project: aissc-core-engine-self-dep
+# Conforms to: C-P-A model from AIdevops.txt
+
+# ── Worker identity ──────────────────────────────────────────────────────────
+name = "webrtc-signaling"
+main = "webrtc-signaling.js"
+compatibility_date = "2026-07-21"
+
+# ── Usage model ──────────────────────────────────────────────────────────────
+# Standard: 100k req/day, 10ms CPU per req (free tier).
+# Durable Object billing is separate — ephemeral sessions minimize cost.
+usage_model = "standard"
+
+# ── Durable Object bindings ──────────────────────────────────────────────────
+# Each SignalingSession is a single WebRTC signaling session.
+# Identified by sessionId via idFromName().
+[[durable_objects.bindings]]
+name = "SIGNALING_DO"
+class_name = "SignalingSession"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["SignalingSession"]
+
+# ── Limits ──────────────────────────────────────────────────────────────────
+[limits]
+cpu_ms = 50

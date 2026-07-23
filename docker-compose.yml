@@ -48,6 +48,157 @@ services:
       retries: 3
       start_period: 20s
 
+  sheryl:
+    build:
+      context: .
+      dockerfile: ./executive-quartet/sheryl/Dockerfile
+    image: sheryl:latest
+    container_name: sheryl
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      - MEMORYPLUGIN_API_KEY
+      - LEDGER_PATH=/var/log/ledger
+    volumes:
+      - ledger-sheryl:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  aura-agent:
+    build:
+      context: .
+      dockerfile: ./executive-quartet/aura/Dockerfile
+    image: aura-agent:latest
+    container_name: aura-agent
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      - LEDGER_PATH=/var/log/ledger
+    volumes:
+      - ledger-aura:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  malory:
+    build: ./executive-quartet/malory
+    image: malory:latest
+    container_name: malory
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      - LEDGER_PATH=/var/log/ledger
+    volumes:
+      - ledger-malory:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  krieger:
+    build: ./executive-quartet/krieger
+    image: krieger:latest
+    container_name: krieger
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      - LEDGER_PATH=/var/log/ledger
+    volumes:
+      - ledger-krieger:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  self-remediation:
+    build: ./self-remediation
+    image: self-remediation:latest
+    container_name: self-remediation
+    restart: unless-stopped
+    ports:
+      - "8087:8087"
+    environment:
+      - LEDGER_PATH=/var/log/ledger
+    volumes:
+      - ledger-self-remediation:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  telegram-bridge:
+    build: ./telegram-bridge
+    image: telegram-bridge:latest
+    container_name: telegram-bridge
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      - TELEGRAM_BOT_TOKEN
+      - LEDGER_PATH=/var/log/ledger
+    volumes:
+      - ledger-telegram-bridge:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
 volumes:
   ledger-a:
   ledger-b:
+  ledger-sheryl:
+  ledger-aura:
+  ledger-malory:
+  ledger-krieger:
+  ledger-self-remediation:
+  ledger-telegram-bridge:
+
+# service: agency-agents-daemon (default OFF — see checkpoint #11)
+# agency-agents-daemon:
+#   build: ./agency-agents/daemon
+#   image: agency-agents-daemon:latest
+#   container_name: agency-agents-daemon
+#   restart: unless-stopped
+#   ports:
+#     - "8082:8082"
+#   environment:
+#     - TEAMS_CONFIG_PATH=/app/teams.json
+#     - DAEMON_PORT=8082
+#   volumes:
+#     - ./agency-agents/daemon/teams.json:/app/teams.json:ro
+#     - ledger-daemon:/var/ledger
+#   # tmpfs: ephemeral ledger mount — isolation contract from teams.json
+#   tmpfs:
+#     - /var/ledger:size=64m,mode=0755,uid=1000,gid=1000
+#   healthcheck:
+#     test: ["CMD", "curl", "-f", "http://localhost:8082/healthz"]
+#     interval: 30s
+#     timeout: 5s
+#     retries: 3
+#     start_period: 20s
+#   # NOTE: Port-bind is OFF by default. To start the daemon:
+#   #   docker compose up agency-agents-daemon
+#   # requires explicit human approval (checkpoint #11).
+#   # The daemon does NOT call Track A or Track B.
+
+# volumes:
+#   ledger-daemon:

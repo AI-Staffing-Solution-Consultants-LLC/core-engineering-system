@@ -1,0 +1,30 @@
+{
+  "module": "track-b",
+  "path": "track-b",
+  "generated_at": "2026-07-20T00:17:23.479975+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 4,
+  "files": [
+    {
+      "file": "track-b/requirements.txt",
+      "sha256": "3d6dcfe635705a34",
+      "size_bytes": 47
+    },
+    {
+      "file": "track-b/manifest.json",
+      "sha256": "8fd460ab9ac9d17a",
+      "size_bytes": 618
+    },
+    {
+      "file": "track-b/main.py",
+      "sha256": "98e59c4bcde2407c",
+      "size_bytes": 8589
+    },
+    {
+      "file": "track-b/Dockerfile",
+      "sha256": "b4c1bc3759bcd613",
+      "size_bytes": 684
+    }
+  ]
+}

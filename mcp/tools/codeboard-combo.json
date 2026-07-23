@@ -1,0 +1,29 @@
+{
+  "name": "codeboard-combo",
+  "version": "0.1.0",
+  "description": "Antigravity IDE + Taskmaster.ai combo for codeboard generation (config-only)",
+  "inputs": {
+    "intent": {"type": "string", "required": true},
+    "constraints": {"type": "object", "default": {}}
+  },
+  "routing": {
+    "antigravity-ide": "IDE-driven codeboard generation",
+    "taskmaster-ai": "task-graph derivation"
+  },
+  "outputs": {
+    "verification_probes": "array"
+  },
+  "live": false,
+  "backends": ["antigravity-ide", "taskmaster-ai"],
+  "env_vars": ["ANTIGRAVITY_API_KEY", "TASKMASTER_API_KEY"],
+  "endpoints": {
+    "antigravity": "https://api.antigravity.dev/v1",
+    "taskmaster": "https://api.taskmaster.ai/v1"
+  },
+  "isolation_contract": "config-only; no live network calls until human gate (checkpoint #10) is approved",
+  "notes": [
+    "live=false is the critical safety mechanism — this spec MUST NOT be flipped to true without explicit human approval.",
+    "Real API keys are sourced from Infisical or gcloud secrets, NEVER from in-repo .env.",
+    "TASKMASTER_API_URL placeholder lives in .env.example at repo root."
+  ]
+}

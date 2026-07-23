@@ -1,0 +1,20 @@
+{
+  "module": "mcp",
+  "path": "mcp",
+  "generated_at": "2026-07-20T00:17:23.475928+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 2,
+  "files": [
+    {
+      "file": "mcp/README.md",
+      "sha256": "18f23382f72737c0",
+      "size_bytes": 3639
+    },
+    {
+      "file": "mcp/manifest.json",
+      "sha256": "d0a21e84b86274b8",
+      "size_bytes": 381
+    }
+  ]
+}

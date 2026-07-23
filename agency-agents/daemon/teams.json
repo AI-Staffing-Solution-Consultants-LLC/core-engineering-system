@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "agency-agents daemon — team-isolation contract. Each team declares its own allowlist subset and isolation rules. The daemon enforces these at /teams/spawn time.",
+  "version": "0.1.0",
+  "isolation_defaults": {
+    "tmpfs": "/var/ledger",
+    "non-root": "coreengine",
+    "no_allUsers_binding": true
+  },
+  "teams": {
+    "NEXUS-Sprint-Verifier-4": {
+      "description": "4-agent verifier team for NEXUS-Sprint Phase-5 evidence review. Read-only access to evidence/ and .omo/ artifacts.",
+      "isolation": {
+        "tmpfs": "/var/ledger",
+        "non-root": "coreengine",
+        "no_allUsers_binding": true
+      },
+      "allowlist_subset": [
+        "cat",
+        "ls",
+        "grep",
+        "wc",
+        "git status",
+        "git diff",
+        "git log"
+      ],
+      "denied": [
+        "rm",
+        "mv",
+        "kubectl",
+        "terraform",
+        "gcloud"
+      ],
+      "max_concurrent": 4,
+      "ledger_scope": "/var/ledger/nexus-sprint-verifier-4"
+    },
+    "NEXUS-Sprint-Verifier-2": {
+      "description": "2-agent verifier team — minimal footprint for fast evidence checks.",
+      "isolation": {
+        "tmpfs": "/var/ledger",
+        "non-root": "coreengine",
+        "no_allUsers_binding": true
+      },
+      "allowlist_subset": [
+        "cat",
+        "ls",
+        "grep",
+        "wc"
+      ],
+      "denied": [
+        "rm",
+        "mv",
+        "kubectl",
+        "terraform",
+        "gcloud",
+        "git push"
+      ],
+      "max_concurrent": 2,
+      "ledger_scope": "/var/ledger/nexus-sprint-verifier-2"
+    }
+  }
+}

@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "mcp-router-config",
+  "version": "1.0.0",
+  "description": "Central MCP Router Configuration — securely binds local Antigravity IDE and Taskmaster.ai environments to remote cloud containers (Track A/B, Inference-Tokenomics, Cloudflare Edge Grid). Establishes the active tool-sharing mesh for the C-P-A cognitive loop.",
+  "generated_by": "Step 5 — Build Central MCP Router + CORE-Modules Dockerfiles",
+  "generated_at": "2026-07-20T00:00:00Z",
+  "source_repo": "Tizzle716/core-engineering-system",
+  "branch": "dev",
+  "project": "aissc-core-engine-self-dep",
+  "region": "us-central1",
+
+  "routing_policy": {
+    "default_ingress": "internal_only",
+    "default_auth": "service_account_token",
+    "default_user": "coreengine",
+    "default_invoker": "core-engine-worker@aissc-core-engine-self-dep.iam.gserviceaccount.com",
+    "cors_origins": [
+      "antigravity://localhost",
+      "https://api.taskmaster.ai",
+      "https://antigravity.dev"
+    ],
+    "rate_limit": {
+      "requests_per_minute": 60,
+      "burst": 10
+    }
+  },
+
+  "backends": {
+    "track-a-control-loop": {
+      "service": "Cloud Run v2 — Track A (Control & Planning Loop)",
+      "url_template": "https://track-a-control-loop-{hash}-uc.a.run.app",
+      "port": 8080,
+      "auth": {
+        "type": "oidc",
+        "service_account": "core-engine-worker@aissc-core-engine-self-dep.iam.gserviceaccount.com",
+        "token_source": "gcloud auth print-identity-token"
+      },
+      "ingress": "INGRESS_TRAFFIC_INTERNAL_ONLY",
+      "endpoints": {
+        "healthz": "GET /healthz",
+        "plan": "POST /plan {\"query\": \"string\"}",
+        "ledger": "GET /ledger?limit=N",
+        "context": "GET / (service index)"
+      },
+      "mcp_tools": ["track-a-plan", "track-a-ledger"],
+      "constraints": {
+        "cpu": "1",
+        "memory": "512Mi",
+        "min_instances": 0,
+        "max_instances": 1
+      }
+    },
+
+    "track-b-actuator": {
+      "service": "Cloud Run v2 — Track B (Constitutional Actuator)",
+      "url_template": "https://track-b-actuator-{hash}-uc.a.run.app",
+      "port": 8081,
+      "auth": {
+        "type": "oidc",
+        "service_account": "core-engine-worker@aissc-core-engine-self-dep.iam.gserviceaccount.com",
+        "token_source": "gcloud auth print-identity-token"
+      },
+      "ingress": "INGRESS_TRAFFIC_INTERNAL_ONLY",
+      "endpoints": {
+        "healthz": "GET /healthz",
+        "execute": "POST /execute {\"tool\": \"string\", \"args\": [], \"reasoning_log_ref\": \"string\"}",
+        "allowlist": "GET /allowlist"
+      },
+      "mcp_tools": ["track-b-execute", "track-b-allowlist"],
+      "security_policy": {
+        "allowlist_source": "policy/tool-allowlist.txt",
+        "metacharacter_blocklist": ["|", ";", "&", "$(", "`", ">", "<", "${", "&&", "||"],
+        "timeout_seconds": 15,
+        "output_truncation_bytes": 8192
+      },
+      "constraints": {
+        "cpu": "1",
+        "memory": "512Mi",
+        "min_instances": 0,
+        "max_instances": 1
+      }
+    },
+
+    "inference-tokenomics": {
+      "service": "Cloud Run v2 — Inference-Tokenomics Engine (LLM Token Budget Gateway)",
+      "url_template": "https://inference-tokenomics-{hash}-uc.a.run.app",
+      "port": 8083,
+      "auth": {
+        "type": "oidc",
+        "service_account": "core-engine-worker@aissc-core-engine-self-dep.iam.gserviceaccount.com",
+        "token_source": "gcloud auth print-identity-token"
+      },
+      "ingress": "INGRESS_TRAFFIC_INTERNAL_ONLY",
+      "endpoints": {
+        "healthz": "GET /healthz",
+        "budget": "GET /tokenomics/budget — current token budget status",
+        "route": "POST /tokenomics/route {\"model\": \"string\", \"tokens\": 0, \"priority\": \"string\"} — route LLM call through optimal provider",
+        "quota": "GET /tokenomics/quota — remaining quota across providers",
+        "history": "GET /tokenomics/history?limit=N — recent routing decisions"
+      },
+      "mcp_tools": ["inference-route", "inference-budget", "inference-quota"],
+      "providers": {
+        "gemini": {
+          "gateway": "https://ai-gateway.gemini.google.com/v1",
+          "models": ["gemini-2.5-flash", "gemini-2.5-pro"],
+          "token_cost_per_1k": {"input": 0.00015, "output": 0.0006},
+          "max_tokens_per_request": 65536
+        },
+        "openai": {
+          "gateway": "https://api.openai.com/v1",
+          "models": ["gpt-4o-mini", "gpt-4o"],
+          "token_cost_per_1k": {"input": 0.00015, "output": 0.0006},
+          "max_tokens_per_request": 128000
+        },
+        "cloudflare-ai": {
+          "gateway": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run",
+          "models": ["@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"],
+          "token_cost_per_1k": {"input": 0.00001, "output": 0.00003},
+          "max_tokens_per_request": 8192,
+          "note": "Requires AI_GATEWAY binding in Cloudflare Worker"
+        }
+      },
+      "failover_policy": {
+        "order": ["cloudflare-ai", "gemini", "openai"],
+        "max_retries": 2,
+        "degradation_threshold": ">500ms p99 latency triggers provider swap",
+        "health_check_interval_seconds": 30
+      },
+      "budget_policy": {
+        "daily_limit_usd": 5.00,
+        "monthly_limit_usd": 50.00,
+        "per_request_max_tokens": 32768,
+        "enforcement": "hard_reject_on_exceed"
+      },
+      "constraints": {
+        "cpu": "1",
+        "memory": "512Mi",
+        "min_instances": 0,
+        "max_instances": 1
+      }
+    },
+
+    "agency-agents-daemon": {
+      "service": "Cloud Run v2 — agency-agents daemon (Team Spawn Coordinator)",
+      "url_template": "https://agency-agents-daemon-{hash}-uc.a.run.app",
+      "port": 8082,
+      "auth": {
+        "type": "oidc",
+        "service_account": "core-engine-worker@aissc-core-engine-self-dep.iam.gserviceaccount.com",
+        "token_source": "gcloud auth print-identity-token"
+      },
+      "ingress": "INGRESS_TRAFFIC_INTERNAL_ONLY",
+      "endpoints": {
+        "healthz": "GET /healthz",
+        "teams_spawn": "POST /teams/spawn {\"team\": \"string\", \"task\": \"string\"}"
+      },
+      "mcp_tools": ["agency-agents-factory"],
+      "isolation": {
+        "tmpfs": "/var/ledger",
+        "non_root": "coreengine",
+        "no_allUsers_binding": true
+      },
+      "constraints": {
+        "cpu": "1",
+        "memory": "256Mi",
+        "min_instances": 0,
+        "max_instances": 1
+      }
+    },
+
+    "cloudflare-edge-grid": {
+      "service": "Cloudflare Worker — Edge Intelligence Grid",
+      "url": "https://edge-intelligence-grid.{subdomain}.workers.dev",
+      "auth": {
+        "type": "worker_token",
+        "header": "X-Edge-Auth",
+        "token_source": "wrangler secret put EDGE_AUTH_TOKEN"
+      },
+      "endpoints": {
+        "healthz": "GET /healthz",
+        "ingest": "POST /ingest — observability event ingestion",
+        "remediate": "POST /remediate — trigger remediation pipeline",
+        "ledger": "GET /ledger?limit=N",
+        "scrape": "POST /scrape — browser rendering scrape",
+        "state": "GET /state — intelligence grid snapshot"
+      },
+      "bindings": {
+        "kv": "OBSERVABILITY_STATE",
+        "queue": "REMEDIATION_QUEUE",
+        "browser": "EDGE_BROWSER",
+        "ai_gateway": "AI_GATEWAY",
+        "durable_object": "EDGE_DO"
+      },
+      "mcp_tools": ["edge-ingest", "edge-remediate", "edge-scrape", "edge-state"]
+    },
+
+    "antigravity-ide": {
+      "service": "Local IDE — Antigravity",
+      "transport": "unix:///var/run/antigravity.sock",
+      "fallback_url": "http://127.0.0.1:9999",
+      "auth": {
+        "type": "local_socket",
+        "note": "Unix socket — no network auth needed when running locally"
+      },
+      "mcp_tools": ["codeboard-combo"],
+      "tool_endpoints": {
+        "codeboard-combo": {
+          "spec": "mcp/tools/codeboard-combo.json",
+          "env_vars": ["ANTIGRAVITY_API_KEY"]
+        }
+      },
+      "constraints": {
+        "local_only": true,
+        "no_public_ingress": true
+      }
+    },
+
+    "taskmaster-ai": {
+      "service": "Task Tracking — Taskmaster.ai",
+      "url": "https://api.taskmaster.ai/v1",
+      "auth": {
+        "type": "api_key",
+        "header": "X-Taskmaster-API-Key",
+        "token_source": "gcloud secrets versions access latest --secret taskmaster-api-key --project aissc-core-engine-self-dep"
+      },
+      "mcp_tools": ["agency-agents-factory", "codeboard-combo"],
+      "endpoints": {
+        "tasks": "POST /tasks — create tracking board entry",
+        "boards": "GET /boards — list active boards",
+        "webhook": "POST /webhooks/cloud-build — CI/CD status notifications"
+      },
+      "constraints": {
+        "rate_limit": "100 requests/minute",
+        "max_concurrent_tasks": 50
+      }
+    }
+  },
+
+  "tool_registry": {
+    "local_specs_path": "mcp/tools/",
+    "registered_tools": {
+      "agency-agents-factory": {
+        "spec": "mcp/tools/agency-agents-factory.json",
+        "route_to": ["agency-agents-daemon"],
+        "auth_required": true,
+        "live": false
+      },
+      "codeboard-combo": {
+        "spec": "mcp/tools/codeboard-combo.json",
+        "route_to": ["antigravity-ide", "taskmaster-ai"],
+        "auth_required": true,
+        "live": false,
+        "human_gate": "checkpoint_10"
+      },
+      "track-a-plan": {
+        "spec": null,
+        "description": "Invoke Track A ReAct planning loop with operator query",
+        "route_to": ["track-a-control-loop"],
+        "auth_required": true
+      },
+      "track-b-execute": {
+        "spec": null,
+        "description": "Execute allowlisted tool via Track B actuator",
+        "route_to": ["track-b-actuator"],
+        "auth_required": true,
+        "require_reasoning_log_ref": true
+      },
+      "track-b-allowlist": {
+        "spec": null,
+        "description": "Inspect current tool allowlist",
+        "route_to": ["track-b-actuator"],
+        "auth_required": true
+      },
+      "inference-route": {
+        "spec": null,
+        "description": "Route LLM call through optimal provider based on tokenomics policy",
+        "route_to": ["inference-tokenomics"],
+        "auth_required": true
+      },
+      "inference-budget": {
+        "spec": null,
+        "description": "Query current LLM token budget status",
+        "route_to": ["inference-tokenomics"],
+        "auth_required": true
+      },
+      "inference-quota": {
+        "spec": null,
+        "description": "Check remaining quota across all LLM providers",
+        "route_to": ["inference-tokenomics"],
+        "auth_required": true
+      },
+      "edge-ingest": {
+        "spec": null,
+        "description": "Ingest observability event into Cloudflare Edge Grid",
+        "route_to": ["cloudflare-edge-grid"],
+        "auth_required": true
+      },
+      "edge-scrape": {
+        "spec": null,
+        "description": "Browser rendering scrape of target URL via Cloudflare Edge",
+        "route_to": ["cloudflare-edge-grid"],
+        "auth_required": true
+      }
+    }
+  },
+
+  "tool_sharing_mesh": {
+    "description": "Active tool-sharing mesh — which backend can invoke which tool, and through which router path.",
+    "routes": [
+      {
+        "from": "antigravity-ide",
+        "to": "track-a-control-loop",
+        "path": "mcp://local/track-a/plan",
+        "method": "POST",
+        "body_template": {"query": "${user_query}"},
+        "auth": "forward_service_account_token"
+      },
+      {
+        "from": "antigravity-ide",
+        "to": "track-b-actuator",
+        "path": "mcp://local/track-b/execute",
+        "method": "POST",
+        "body_template": {"tool": "${tool_name}", "args": "${args}", "reasoning_log_ref": "${reasoning_ref}"},
+        "auth": "forward_service_account_token"
+      },
+      {
+        "from": "antigravity-ide",
+        "to": "inference-tokenomics",
+        "path": "mcp://local/inference/route",
+        "method": "POST",
+        "body_template": {"model": "${model}", "messages": "${messages}", "priority": "${priority}"},
+        "auth": "forward_service_account_token"
+      },
+      {
+        "from": "taskmaster-ai",
+        "to": "track-a-control-loop",
+        "path": "mcp://taskmaster/track-a/plan",
+        "method": "POST",
+        "auth": "service_account_token",
+        "trigger": "on_ticket_create"
+      },
+      {
+        "from": "taskmaster-ai",
+        "to": "agency-agents-daemon",
+        "path": "mcp://taskmaster/agency/spawn_team",
+        "method": "POST",
+        "body_template": {"team": "${team}", "task": "${task_description}"},
+        "auth": "service_account_token",
+        "trigger": "on_issue_assigned"
+      },
+      {
+        "from": "inference-tokenomics",
+        "to": "cloudflare-edge-grid",
+        "path": "mcp://internal/edge/classify",
+        "method": "POST",
+        "body_template": {"event_type": "${type}", "source": "${source}", "payload": "${payload}"},
+        "auth": "edge_auth_token"
+      },
+      {
+        "from": "inference-tokenomics",
+        "to": "track-b-actuator",
+        "path": "mcp://internal/track-b/execute",
+        "method": "POST",
+        "auth": "service_account_token",
+        "trigger": "on_classification_critical"
+      }
+    ]
+  },
+
+  "security_contract": {
+    "description": "Constitutional AI enforcement across the full tool-sharing mesh.",
+    "rules": [
+      {
+        "id": "mcp-c001",
+        "rule": "No allUsers invoker binding on any Cloud Run service",
+        "enforcement": "terraform.tf IAM + cloudbuild.yaml --no-allow-unauthenticated",
+        "applies_to": ["track-a-control-loop", "track-b-actuator", "inference-tokenomics", "agency-agents-daemon"]
+      },
+      {
+        "id": "mcp-c002",
+        "rule": "All containers run as non-root user coreengine (UID >= 1000)",
+        "enforcement": "Dockerfile USER coreengine",
+        "applies_to": ["track-a-control-loop", "track-b-actuator", "inference-tokenomics", "agency-agents-daemon"]
+      },
+      {
+        "id": "mcp-c003",
+        "rule": "Internal-only ingress (INGRESS_TRAFFIC_INTERNAL_ONLY)",
+        "enforcement": "cloudbuild.yaml --ingress=internal",
+        "applies_to": ["track-a-control-loop", "track-b-actuator", "inference-tokenomics", "agency-agents-daemon"]
+      },
+      {
+        "id": "mcp-c004",
+        "rule": "Tool allowlist enforced before any execution",
+        "enforcement": "track-b/main.py is_allowed() + policy/tool-allowlist.txt",
+        "applies_to": ["track-b-actuator"]
+      },
+      {
+        "id": "mcp-c005",
+        "rule": "Reasoning log ref required for every tool execution",
+        "enforcement": "track-b/main.py gate check + track-a/plan ledger chain",
+        "applies_to": ["track-b-actuator", "tool_sharing_mesh routes that invoke track-b"]
+      },
+      {
+        "id": "mcp-c006",
+        "rule": "No metacharacters in tool arguments (|; & $() \u0060 > < ${} && ||)",
+        "enforcement": "track-b/main.py metacharacter blocklist",
+        "applies_to": ["track-b-actuator"]
+      },
+      {
+        "id": "mcp-c007",
+        "rule": "Secrets sourced from Infisical or Secret Manager — never in-repo",
+        "enforcement": "infisical_vault_sync.sh + terraform/secrets.tf",
+        "applies_to": ["all"]
+      },
+      {
+        "id": "mcp-c008",
+        "rule": "Tamper-evident ledger on every reasoning step and execution",
+        "enforcement": "SHA-256 chained JSONL ledger in both Track A and Track B",
+        "applies_to": ["track-a-control-loop", "track-b-actuator"]
+      },
+      {
+        "id": "mcp-c009",
+        "rule": "Inference-Tokenomics budget enforcement — hard reject on exceed",
+        "enforcement": "inference-tokenomics budget_policy daily/monthly limits",
+        "applies_to": ["inference-tokenomics"]
+      },
+      {
+        "id": "mcp-c010",
+        "rule": "codeboard-combo tool remains live=false until human gate #10",
+        "enforcement": "mcp/tools/codeboard-combo.json live=false + toggleguard",
+        "applies_to": ["codeboard-combo"]
+      }
+    ]
+  },
+
+  "environment_variables": {
+    "_comment": "These are documented here for consistency; values come from Infisical or Secret Manager.",
+    "track-a-control-loop": {
+      "RAG_CORPUS_PATH": "/rag/docs",
+      "POLICY_DIR": "/policy",
+      "LEDGER_PATH": "/var/log/ledger",
+      "TRACK_B_URL": "https://track-b-actuator-xxxxx-uc.a.run.app"
+    },
+    "track-b-actuator": {
+      "LEDGER_PATH": "/var/log/ledger",
+      "TOOL_ALLOWLIST": "/policy/tool-allowlist.txt"
+    },
+    "inference-tokenomics": {
+      "BUDGET_DAILY_LIMIT_USD": "5.00",
+      "BUDGET_MONTHLY_LIMIT_USD": "50.00",
+      "INFISICAL_CLIENT_ID": "${INFISICAL_CLIENT_ID}",
+      "INFISICAL_CLIENT_SECRET": "${INFISICAL_CLIENT_SECRET}",
+      "GEMINI_API_KEY": "${GEMINI_API_KEY}",
+      "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+      "CF_ACCOUNT_ID": "${CF_ACCOUNT_ID}",
+      "CF_API_TOKEN": "${CF_API_TOKEN}"
+    },
+    "cloudflare-edge-grid": {
+      "TRACK_B_URL": "https://track-b-actuator-xxxxx-uc.a.run.app",
+      "TRACK_A_URL": "https://track-a-control-loop-xxxxx-uc.a.run.app",
+      "LEDGER_RETENTION_DAYS": "90",
+      "AUTO_REMEDIATE_CRITICAL": "true",
+      "MAX_SCRAPE_TIMEOUT_MS": "15000"
+    }
+  },
+
+  "deployment_order": {
+    "description": "Strict deployment order enforced by cloudbuild.yaml dependency chain.",
+    "sequence": [
+      "1. infisical-auth              — machine identity handshake",
+      "2. inference-tokenomics         — MUST deploy and pass health check first (hierarchy root)",
+      "3. track-a-control-loop         — depends on Inference-Tokenomics health gate",
+      "4. track-b-actuator             — depends on Track A being deployed",
+      "5. agency-agents-daemon          — depends on Track B allowlist being loaded",
+      "6. cloudflare-edge-grid (worker) — deploys independently via wrangler; requires KV + Queue provisioning first"
+    ]
+  },
+
+  "health_check_matrix": {
+    "expected_response": {
+      "track-a-control-loop": "GET /healthz → {\"status\":\"healthy\",\"track\":\"A\"}",
+      "track-b-actuator": "GET /healthz → {\"status\":\"healthy\"}",
+      "inference-tokenomics": "GET /healthz → {\"status\":\"healthy\",\"service\":\"inference-tokenomics\"}",
+      "agency-agents-daemon": "GET /healthz → {\"status\":\"ok\",\"service\":\"agency-agents-daemon\"}",
+      "cloudflare-edge-grid": "GET /healthz → {\"status\":\"healthy\",\"service\":\"cloudflare-edge-intelligence-grid\"}"
+    },
+    "probe_endpoints": {
+      "description": "These URLs are probed by the Cloudflare Edge scraper.js via EDGE_BROWSER binding.",
+      "endpoints": [
+        "https://track-a-control-loop-xxxxx-uc.a.run.app/healthz",
+        "https://track-b-actuator-xxxxx-uc.a.run.app/healthz",
+        "https://inference-tokenomics-xxxxx-uc.a.run.app/healthz",
+        "https://agency-agents-daemon-xxxxx-uc.a.run.app/healthz"
+      ]
+    }
+  }
+}

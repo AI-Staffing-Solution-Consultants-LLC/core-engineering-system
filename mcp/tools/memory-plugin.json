@@ -1,0 +1,20 @@
+{
+  "name": "memory-plugin",
+  "version": "0.1.0",
+  "description": "Persistent memory store for executive quartet agents — store, query, and delete structured memories across sessions.",
+  "inputs": {
+    "operation": {"type": "string", "required": true, "enum": ["store", "query", "delete"]},
+    "context": {"type": "string", "required": true},
+    "entity": {"type": "string", "required": true},
+    "payload": {"type": "object", "default": {}}
+  },
+  "outputs": {
+    "success": "boolean",
+    "data": "object",
+    "error": "string"
+  },
+  "endpoint": "https://www.memoryplugin.com/api/mcp/mcp",
+  "backends": ["executive-quartet"],
+  "env_vars": ["MEMORYPLUGIN_API_KEY"],
+  "isolation_contract": "HTTP-only client; no local filesystem access; API key via env var only (never hardcoded); retry 3x with exponential backoff"
+}

@@ -1,0 +1,6 @@
+[run]
+source = src/,track-a/,track-b/
+omit = .test/,.venv/,__pycache__/
+
+[report]
+fail_under = 0

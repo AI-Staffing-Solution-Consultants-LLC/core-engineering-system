@@ -43,3 +43,39 @@ variable "track_b_auth_token_secret" {
   sensitive   = true
   default     = "placeholder-change-me"
 }
+
+variable "sheryl_image" {
+  description = "Container image URI for Sheryl Quartet"
+  type        = string
+  default     = "placeholder-change-me"
+}
+
+variable "aura_image" {
+  description = "Container image URI for Aura Quartet"
+  type        = string
+  default     = "placeholder-change-me"
+}
+
+variable "malory_image" {
+  description = "Container image URI for Malory Quartet"
+  type        = string
+  default     = "placeholder-change-me"
+}
+
+variable "krieger_image" {
+  description = "Container image URI for Krieger Quartet"
+  type        = string
+  default     = "placeholder-change-me"
+}
+
+variable "self_remediation_image" {
+  description = "Container image URI for Self-Remediation"
+  type        = string
+  default     = "placeholder-change-me"
+}
+
+variable "telegram_bridge_image" {
+  description = "Container image URI for Telegram Bridge"
+  type        = string
+  default     = "placeholder-change-me"
+}

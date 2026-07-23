@@ -131,3 +131,351 @@ resource "google_cloud_run_service_iam_member" "track_b_invoker" {
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
 }
+
+# --- Sheryl Quartet ---
+resource "google_cloud_run_v2_service" "sheryl_quartet" {
+  name     = "sheryl-quartet"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = var.sheryl_image
+      ports {
+        container_port = 8083
+      }
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
+        tcp_socket {
+          port = 8083
+        }
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 8083
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    service_account = google_service_account.core_engine_worker.email
+  }
+
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_cloud_run_service_iam_member" "sheryl_quartet_invoker" {
+  location = google_cloud_run_v2_service.sheryl_quartet.location
+  project  = google_cloud_run_v2_service.sheryl_quartet.project
+  service  = google_cloud_run_v2_service.sheryl_quartet.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
+}
+
+# --- Aura Quartet ---
+resource "google_cloud_run_v2_service" "aura_quartet" {
+  name     = "aura-quartet"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = var.aura_image
+      ports {
+        container_port = 8084
+      }
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
+        tcp_socket {
+          port = 8084
+        }
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 8084
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    service_account = google_service_account.core_engine_worker.email
+  }
+
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_cloud_run_service_iam_member" "aura_quartet_invoker" {
+  location = google_cloud_run_v2_service.aura_quartet.location
+  project  = google_cloud_run_v2_service.aura_quartet.project
+  service  = google_cloud_run_v2_service.aura_quartet.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
+}
+
+# --- Malory Quartet ---
+resource "google_cloud_run_v2_service" "malory_quartet" {
+  name     = "malory-quartet"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = var.malory_image
+      ports {
+        container_port = 8085
+      }
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
+        tcp_socket {
+          port = 8085
+        }
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 8085
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    service_account = google_service_account.core_engine_worker.email
+  }
+
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_cloud_run_service_iam_member" "malory_quartet_invoker" {
+  location = google_cloud_run_v2_service.malory_quartet.location
+  project  = google_cloud_run_v2_service.malory_quartet.project
+  service  = google_cloud_run_v2_service.malory_quartet.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
+}
+
+# --- Krieger Quartet ---
+resource "google_cloud_run_v2_service" "krieger_quartet" {
+  name     = "krieger-quartet"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = var.krieger_image
+      ports {
+        container_port = 8086
+      }
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
+        tcp_socket {
+          port = 8086
+        }
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 8086
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    service_account = google_service_account.core_engine_worker.email
+  }
+
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_cloud_run_service_iam_member" "krieger_quartet_invoker" {
+  location = google_cloud_run_v2_service.krieger_quartet.location
+  project  = google_cloud_run_v2_service.krieger_quartet.project
+  service  = google_cloud_run_v2_service.krieger_quartet.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
+}
+
+# --- Self-Remediation ---
+resource "google_cloud_run_v2_service" "self_remediation" {
+  name     = "self-remediation"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = var.self_remediation_image
+      ports {
+        container_port = 8087
+      }
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
+        tcp_socket {
+          port = 8087
+        }
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 8087
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    service_account = google_service_account.core_engine_worker.email
+  }
+
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_cloud_run_service_iam_member" "self_remediation_invoker" {
+  location = google_cloud_run_v2_service.self_remediation.location
+  project  = google_cloud_run_v2_service.self_remediation.project
+  service  = google_cloud_run_v2_service.self_remediation.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
+}
+
+# --- Telegram Bridge ---
+resource "google_cloud_run_v2_service" "telegram_bridge" {
+  name     = "telegram-bridge"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = var.telegram_bridge_image
+      ports {
+        container_port = 8088
+      }
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
+        tcp_socket {
+          port = 8088
+        }
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 8088
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    service_account = google_service_account.core_engine_worker.email
+  }
+
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_cloud_run_service_iam_member" "telegram_bridge_invoker" {
+  location = google_cloud_run_v2_service.telegram_bridge.location
+  project  = google_cloud_run_v2_service.telegram_bridge.project
+  service  = google_cloud_run_v2_service.telegram_bridge.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
+}

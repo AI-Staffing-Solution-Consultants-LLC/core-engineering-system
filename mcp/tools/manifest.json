@@ -1,0 +1,30 @@
+{
+  "module": "mcp_tools",
+  "path": "mcp/tools",
+  "generated_at": "2026-07-20T00:17:23.478710+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 4,
+  "files": [
+    {
+      "file": "mcp/tools/codeboard-combo.dryrun.py",
+      "sha256": "321e2e0d5902c53c",
+      "size_bytes": 3428
+    },
+    {
+      "file": "mcp/tools/manifest.json",
+      "sha256": "3c801dff395fbfa0",
+      "size_bytes": 670
+    },
+    {
+      "file": "mcp/tools/agency-agents-factory.json",
+      "sha256": "d1bfeed4bd618e51",
+      "size_bytes": 629
+    },
+    {
+      "file": "mcp/tools/codeboard-combo.json",
+      "sha256": "f47033ef1689473c",
+      "size_bytes": 1122
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "module": "agency-agents",
+  "path": "agency-agents",
+  "generated_at": "2026-07-20T00:17:23.467265+00:00",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 2,
+  "files": [
+    {
+      "file": "agency-agents/package.json",
+      "sha256": "31174f642a04865f",
+      "size_bytes": 230
+    },
+    {
+      "file": "agency-agents/manifest.json",
+      "sha256": "05f0f85a42670e65",
+      "size_bytes": 423
+    }
+  ]
+}

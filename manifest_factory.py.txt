@@ -1,0 +1,64 @@
+import json
+import os
+import subprocess
+
+def trigger_autonomous_feature_build(eim_payload):
+    """
+    Accepts raw vision payload from EIM, triggers Antigravity/Taskmaster to scaffold paths,
+    and deploys a targeted agency-agents team to test and compile the product.
+    """
+    module_name = eim_payload["target_module_name"]
+    target_path = f"./CEM-Modules/{module_name}"
+    
+    # 1. Initialize Taskmaster Issue & Antigravity Scaffolding Workspace
+    print(f"[!] Alerting Taskmaster: Creating tracking board entry for {module_name}...")
+    subprocess.run(["taskmaster", "add", f"Build feature container {module_name}", "--priority", "high"], check=True)
+    os.makedirs(target_path, exist_ok=True)
+    
+    # 2. Programmatically generate a bespoke team configuration tailored to the feature scope
+    agency_manifest = {
+        "project": f"aissc-{module_name}-evolution",
+        "workspace_root": "/home/olly/core-engineering-system",
+        "mode": "NEXUS-Sprint",
+        "roster": {
+            "orchestrator_nodes": [
+                { "name": "Agents Orchestrator", "model": "deepseek-v4-pro", "role": "Traffic routing" },
+                { "name": "Project Shepherd", "model": "qwen3.7-max", "role": "Gate check enforcer" }
+            ],
+            "core_engineering_nodes": [
+                { "name": "Backend Architect", "model": "deepseek-v4-pro", "role": f"Build functional logic for {module_name}" },
+                { "name": "DevOps Automator", "model": "qwen3.7-max", "role": "Formulate path-aware Dockerfile adjustments" },
+                { "name": "Evidence Collector", "model": "deepseek-v4-flash", "role": "Harvest test results into ./evidence/" }
+            ],
+            "quality_governance_nodes": [
+                { "name": "API Tester", "model": "deepseek-v4-flash", "role": "Verify routes and JSON payloads" },
+                { "name": "Reality Checker", "model": "kimi-k2.6", "role": "Check configuration constraints against policy" }
+            ]
+        },
+        "target_directory_scope": target_path,
+        "enforce_gates": True
+    }
+    
+    # 3. Write out configuration to directory tree
+    manifest_path = os.path.join(target_path, "agency.json")
+    with open(manifest_path, "w") as f:
+        json.dump(agency_manifest, f, indent=2)
+        
+    print(f"[+] Multi-Agent team successfully written to {manifest_path}")
+    
+    # 4. Invoke agency-agents CLI platform engine to execute the complete build and validation loop
+    print(f"[!] Activating NEXUS-Sprint team loop for path: {target_path}")
+    subprocess.run([
+        "agency-agents", "sprint:run", 
+        f"--config={manifest_path}", 
+        f"--blueprint=./CEM_Update.txt"
+    ], check=True)
+
+# Contextual execution block stub for internal test validation
+if __name__ == "__main__":
+    mock_payload = {
+        "target_module_name": "BM-03_Analytics_Collector",
+        "engineering_vision": "Create a metric interceptor module connecting Cloud Run instances to Cloudflare logs."
+    }
+    trigger_autonomous_feature_build(mock_payload)
+

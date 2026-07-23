@@ -1,0 +1,86 @@
+# Sheryl Dashboard — Pages Project wrangler.toml
+# Deploys the Cloudflare Pages frontend at core.ai-business-employees.online
+# with KV namespaces, Durable Object bindings, and service bindings to Workers.
+#
+# Deploy gate: wrangler deploy / pages deploy are [HUMAN-APPROVAL-REQUIRED].
+# Do NOT deploy without explicit approval.
+#
+# Project: aissc-core-engine-self-dep
+# Conforms to: C-P-A model from AIdevops.txt
+
+# ── Project identity ──────────────────────────────────────────────────────────
+name = "sheryl-dashboard"
+pages_build_output_dir = "cloudflare/src"
+compatibility_date = "2026-07-21"
+compatibility_flags = ["nodejs_compat"]
+
+# ── KV namespace bindings ─────────────────────────────────────────────────────
+# Provision via: wrangler kv:namespace create "OBSERVABILITY_STATE"
+#                wrangler kv:namespace create "INFISICAL_CACHE"
+
+[[kv_namespaces]]
+binding = "OBSERVABILITY_STATE"
+id = "placeholder-bind-real-kv-id-here"
+preview_id = "placeholder-bind-real-kv-id-here"
+
+[[kv_namespaces]]
+binding = "INFISICAL_CACHE"
+id = "placeholder-bind-real-kv-id-here"
+preview_id = "placeholder-bind-real-kv-id-here"
+
+# ── Durable Object bindings ───────────────────────────────────────────────────
+# SignalingSession DO class defined in cloudflare/workers/webrtc-signaling.js.
+# Provides ephemeral session state for WebRTC peer connections.
+# DO binding names and class names must match Task 18 worker config.
+
+[[durable_objects.bindings]]
+name = "SIGNALING_DO"
+class_name = "SignalingSession"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["SignalingSession"]
+
+# ── Service bindings to Workers ───────────────────────────────────────────────
+# Routes Pages → Worker calls for WebRTC signaling and Turnstile admin gate.
+
+[[services]]
+binding = "WEBRTC_SIGNALING"
+service = "webrtc-signaling"
+environment = "production"
+
+[[services]]
+binding = "TURNSTILE_GATE"
+service = "turnstile-gate"
+environment = "production"
+
+# ── Environment variables ─────────────────────────────────────────────────────
+# Secrets (set via wrangler secret put / Infisical):
+#   CFP_PASSWORD       — admin password for admin-gate function
+#   TURNSTILE_SITE_KEY — Turnstile widget site key
+#   TURNSTILE_SECRET_KEY — Turnstile server-side secret
+
+[vars]
+CFP_PASSWORD = "placeholder-change-me"
+TURNSTILE_SITE_KEY = "placeholder-turnstile-site-key"
+TURNSTILE_SECRET_KEY = "placeholder-turnstile-secret-key"
+TRACK_B_URL = "https://track-b-actuator-xxxxx-uc.a.run.app"
+TRACK_A_URL = "https://track-a-control-loop-xxxxx-uc.a.run.app"
+
+# ── Limits ────────────────────────────────────────────────────────────────────
+[limits]
+cpu_ms = 50
+
+# ── Observability ─────────────────────────────────────────────────────────────
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# ── Environment overrides ─────────────────────────────────────────────────────
+# [env.production]
+# [env.production.vars]
+# CFP_PASSWORD = "set-via-infisical"
+
+# NOTE: All KV IDs are placeholders. Provision real namespaces and update
+# the ids before wrangler deploy.
+# [HUMAN-APPROVAL-REQUIRED] before any deployment.

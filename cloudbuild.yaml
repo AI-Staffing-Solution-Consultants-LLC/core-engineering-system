@@ -1,0 +1,715 @@
+# Cloud Build pipeline for core-engineering-system
+# Builds track-a and track-b Docker images and deploys them to Cloud Run.
+#
+# === PATH-AWARE ARCHITECTURE ===
+# Each step detects which paths changed (via git diff) and conditionally
+# builds only the affected containers. This minimizes build time and
+# eliminates unnecessary deployments.
+#
+# === BUILD HIERARCHY ===
+# Step 0 (Inference-Tokenomics) MUST build successfully first before any
+# downstream agent containers (track-a, track-b) are initialized.
+# This enforces the C-P-A model dependency chain: the inference engine
+# provides the tokenomics policy that gates all downstream actions.
+#
+# === SECURITY ===
+# Step 0.5 (Infisical Machine Identity) authenticates with Infisical to
+# fetch secrets for the build pipeline. No credentials are echoed to logs.
+# All subsequent steps inherit the Infisical token via workspace volumes.
+#
+# === AUTH & SIZING ===
+# --no-allow-unauthenticated on both services (Constitutional AI enforcement).
+# Free tier sizing: cpu=1, memory=512Mi, min-instances=0, max-instances=1.
+#
+# Project: aissc-core-engine-self-dep
+# Region: us-central1
+# Branch: dev on Tizzle716/core-engineering-system
+
+# Substitutions — override at submit time
+substitutions:
+  _PROJECT: aissc-core-engine-self-dep
+  _REGION: us-central1
+  _REPO: gcr.io/${_PROJECT}
+  _SERVICE_A: track-a-control-loop
+  _SERVICE_B: track-b-actuator
+  _SERVICE_INFERENCE: inference-tokenomics
+  _SERVICE_SHERYL: sheryl-agent
+  _SERVICE_AURA: aura-agent
+  _SERVICE_MALORY: malory-agent
+  _SERVICE_KRIEGER: krieger-agent
+  _SERVICE_REMEDIATION: self-remediation
+  _SERVICE_TELEGRAM: telegram-bridge
+  _SERVICE_BARRY: barry-preservation
+  _SERVICE_ACCOUNT: core-engine-worker@${_PROJECT}.iam.gserviceaccount.com
+  _INFISICAL_CLIENT_ID: ""    # Set via --substitutions or trigger config
+  _INFISICAL_CLIENT_SECRET: "" # Set via --substitutions or trigger config
+
+# Garbage collection: no GCS bucket required; logs to Cloud Logging only
+options:
+  logging: CLOUD_LOGGING_ONLY
+  dynamic_substitutions: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Step 0: Infisical Machine Identity Authentication
+# Fetches an Infisical access token for secret injection during the build.
+# The token is written to a shared workspace volume for downstream steps.
+# ──────────────────────────────────────────────────────────────────────────────
+steps:
+  - id: 'infisical-auth'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        echo "[*] Authenticating Infisical Machine Identity..."
+
+        if [ -z "$${_INFISICAL_CLIENT_ID:-}" ] || [ -z "$${_INFISICAL_CLIENT_SECRET:-}" ]; then
+          echo "[!] WARNING: Infisical credentials not provided via substitutions."
+          echo "[!] Skipping Infisical auth — downstream steps may lack secrets."
+          echo "SKIPPED" > /workspace/infisical_token.txt
+          exit 0
+        fi
+
+        AUTH_RESPONSE=$(curl -sS -X POST "https://app.infisical.com/api/v1/auth/universal-auth/login" \
+          -H "Content-Type: application/json" \
+          -d "{\"clientId\": \"$${_INFISICAL_CLIENT_ID}\", \"clientSecret\": \"$${_INFISICAL_CLIENT_SECRET}\"}")
+
+        INFISICAL_TOKEN=$(echo "$AUTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('accessToken',''))" 2>/dev/null || echo "")
+
+        if [ -z "$INFISICAL_TOKEN" ]; then
+          echo "[-] Fatal: Infisical Universal Auth handshake failed."
+          echo "$AUTH_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('message','Unknown error'))" 2>/dev/null || echo "Raw: $AUTH_RESPONSE"
+          exit 1
+        fi
+
+        # Write token to shared workspace (NEVER echo token to logs)
+        echo "$INFISICAL_TOKEN" > /workspace/infisical_token.txt
+        echo "[+] Infisical Machine Identity authenticated successfully."
+        echo "[+] Token written to /workspace/infisical_token.txt (not echoed)."
+
+        # Fetch Inference-Tokenomics secrets into workspace
+        echo "[*] Fetching Inference-Tokenomics secrets from Infisical..."
+        curl -sS "https://app.infisical.com/api/v3/secrets/raw/CORE-Modules/Inference-Tokenomics" \
+          -H "Authorization: Bearer $INFISICAL_TOKEN" \
+          | python3 -c 'import sys,json; d=json.load(sys.stdin); [print(f"{s[\"secretKey\"]}={s[\"secretValue\"]}") for s in d.get("secrets",[])]' \
+          > /workspace/inference_secrets.env 2>/dev/null \
+          || echo "[!] Warning: Could not fetch Inference-Tokenomics secrets."
+        echo "[+] Secrets fetched and written to /workspace/inference_secrets.env."
+    secretEnv:
+      - '_INFISICAL_CLIENT_ID'
+      - '_INFISICAL_CLIENT_SECRET'
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 1: Detect Changed Paths (git diff analysis)
+  # Determines which modules changed and sets conditional flags for downstream
+  # steps. This is the path-aware gate that ensures only affected containers
+  # are rebuilt and redeployed.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'detect-changed-paths'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        echo "[*] Analyzing changed paths..."
+
+        # Determine the diff base: use the previous commit on the same branch
+        # or COMMIT_SHA^ if available. Fall back to HEAD~1 for initial analysis.
+        BASE_SHA="${_BASE_SHA:-HEAD~1}"
+
+        echo "[*] Diff base: $BASE_SHA vs HEAD"
+
+        CHANGED_FILES=$(git diff --name-only "$BASE_SHA" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+
+        echo "[*] Changed files:"
+        echo "$CHANGED_FILES"
+
+        # Set conditional flags based on path patterns
+        BUILD_TRACK_A="false"
+        BUILD_TRACK_B="false"
+        BUILD_INFERENCE="false"
+        BUILD_TERRAFORM="false"
+        BUILD_QUARTET="false"
+        BUILD_TELEGRAM="false"
+        BUILD_REMEDIATION="false"
+        BUILD_CLOUDFLARE="false"
+        BUILD_BARRY="false"
+        BUILD_AURA="false"
+
+        while IFS= read -r file; do
+          case "$file" in
+            track-a/*|track_a/*)
+              BUILD_TRACK_A="true"
+              echo "[+] track-a/ changed → will build Track A"
+              ;;
+            track-b/*)
+              BUILD_TRACK_B="true"
+              echo "[+] track-b/ changed → will build Track B"
+              ;;
+            terraform/*)
+              BUILD_TERRAFORM="true"
+              echo "[+] terraform/ changed → will validate Terraform"
+              ;;
+            executive-quartet/*)
+              BUILD_QUARTET="true"
+              echo "[+] executive-quartet/ changed → will build Executive Quartet"
+              ;;
+            telegram-bridge/*)
+              BUILD_TELEGRAM="true"
+              echo "[+] telegram-bridge/ changed → will build Telegram Bridge"
+              ;;
+            self-remediation/*)
+              BUILD_REMEDIATION="true"
+              echo "[+] self-remediation/ changed → will build Self-Remediation Engine"
+              ;;
+            cloudflare/*)
+              BUILD_CLOUDFLARE="true"
+              echo "[+] cloudflare/ changed → will detect Cloudflare changes"
+              ;;
+            barry-preservation/*)
+              BUILD_BARRY="true"
+              echo "[+] barry-preservation/ changed → will detect Barry Preservation changes"
+              ;;
+            aura-refactor/*)
+              BUILD_AURA="true"
+              echo "[+] aura-refactor/ changed → will detect Aura Refactor changes"
+              ;;
+            *)
+              # If any root-level config or shared file changes, build everything
+              if [[ "$file" =~ ^(cloudbuild\.yaml|docker-compose\.yml|policy/|requirements\.txt|infisical_) ]]; then
+                BUILD_TRACK_A="true"
+                BUILD_TRACK_B="true"
+                echo "[+] Shared config changed ($file) → will build all services"
+              fi
+              ;;
+          esac
+        done <<< "$CHANGED_FILES"
+
+        # Inference-Tokenomics is always built if any code changed (hierarchy requirement)
+        if [[ "$BUILD_TRACK_A" == "true" || "$BUILD_TRACK_B" == "true" ]]; then
+          BUILD_INFERENCE="true"
+          echo "[+] Downstream services changed → will build Inference-Tokenomics (hierarchy requirement)"
+        fi
+
+        # If no changes detected, default to building everything (safety first)
+        if [[ "$BUILD_TRACK_A" == "false" && "$BUILD_TRACK_B" == "false" && "$BUILD_INFERENCE" == "false" ]]; then
+          echo "[!] No tracked paths changed — defaulting to full build for safety."
+          BUILD_TRACK_A="true"
+          BUILD_TRACK_B="true"
+          BUILD_INFERENCE="true"
+        fi
+
+        # Write flags to workspace for downstream steps
+        echo "BUILD_TRACK_A=$BUILD_TRACK_A" > /workspace/build_flags.env
+        echo "BUILD_TRACK_B=$BUILD_TRACK_B" >> /workspace/build_flags.env
+        echo "BUILD_INFERENCE=$BUILD_INFERENCE" >> /workspace/build_flags.env
+        echo "BUILD_TERRAFORM=$BUILD_TERRAFORM" >> /workspace/build_flags.env
+        echo "BUILD_QUARTET=$BUILD_QUARTET" >> /workspace/build_flags.env
+        echo "BUILD_TELEGRAM=$BUILD_TELEGRAM" >> /workspace/build_flags.env
+        echo "BUILD_REMEDIATION=$BUILD_REMEDIATION" >> /workspace/build_flags.env
+        echo "BUILD_CLOUDFLARE=$BUILD_CLOUDFLARE" >> /workspace/build_flags.env
+        echo "BUILD_BARRY=$BUILD_BARRY" >> /workspace/build_flags.env
+        echo "BUILD_AURA=$BUILD_AURA" >> /workspace/build_flags.env
+
+        echo "[+] Build flags written to /workspace/build_flags.env"
+        cat /workspace/build_flags.env
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 2: Build Inference-Tokenomics (HIERARCHY — MUST SUCCEED FIRST)
+  # This is the inference engine that provides tokenomics policy gating all
+  # downstream agent builds. Builds from the Inference-Tokenomics container
+  # definition. Only runs if BUILD_INFERENCE=true.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'build-inference-tokenomics'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_INFERENCE:-false}" != "true" ]]; then
+          echo "[*] Skipping Inference-Tokenomics build (no relevant changes)."
+          exit 0
+        fi
+        echo "[*] Building Inference-Tokenomics container (hierarchy root)..."
+        docker build \
+          -f CORE-Modules/Inference-Tokenomics/Dockerfile \
+          -t ${_REPO}/${_SERVICE_INFERENCE}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_INFERENCE}:latest \
+          CORE-Modules/Inference-Tokenomics
+        echo "[+] Inference-Tokenomics build complete."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 3: Validate Inference-Tokenomics Health (HIERARCHY GATE)
+  # Inference-Tokenomics MUST boot and pass health check before downstream
+  # containers are allowed to proceed. This enforces the C-P-A dependency chain.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'verify-inference-tokenomics'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_INFERENCE:-false}" != "true" ]]; then
+          echo "[*] Skipping Inference-Tokenomics verification."
+          exit 0
+        fi
+        echo "[*] Deploying Inference-Tokenomics for health verification..."
+        gcloud run deploy ${_SERVICE_INFERENCE} \
+          --image=${_REPO}/${_SERVICE_INFERENCE}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8083
+
+        # Wait for service to become healthy
+        echo "[*] Waiting for Inference-Tokenomics to become healthy..."
+        INFERENCE_URL=$(gcloud run services describe ${_SERVICE_INFERENCE} \
+          --region=${_REGION} --project=${_PROJECT} \
+          --format='value(status.url)' 2>/dev/null || echo "")
+
+        if [ -z "$INFERENCE_URL" ]; then
+          echo "[-] Fatal: Could not determine Inference-Tokenomics URL."
+          exit 1
+        fi
+
+        for i in $(seq 1 12); do
+          STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+            "$INFERENCE_URL/healthz" 2>/dev/null || echo "000")
+          if [[ "$STATUS" == "200" ]]; then
+            echo "[+] Inference-Tokenomics healthy (HTTP $STATUS). Downstream builds authorized."
+            echo "INFERENCE_URL=$INFERENCE_URL" > /workspace/inference_url.env
+            exit 0
+          fi
+          echo "[*] Attempt $i/12: Inference-Tokenomics not ready (HTTP $STATUS). Retrying in 5s..."
+          sleep 5
+        done
+        echo "[-] Fatal: Inference-Tokenomics failed to become healthy after 60s."
+        exit 1
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 4: Build Track A — Control & Planning Loop
+  # Only builds if track-a/ files changed (or full build triggered).
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'build-track-a'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_TRACK_A:-false}" != "true" ]]; then
+          echo "[*] Skipping Track A build (no changes in track-a/)."
+          exit 0
+        fi
+        echo "[*] Building Track A (Control & Planning Loop)..."
+        docker build \
+          -f track-a/Dockerfile \
+          -t ${_REPO}/${_SERVICE_A}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_A}:latest \
+          track-a
+        echo "[+] Track A build complete."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 5: Build Track B — Actuator
+  # Only builds if track-b/ files changed (or full build triggered).
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'build-track-b'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_TRACK_B:-false}" != "true" ]]; then
+          echo "[*] Skipping Track B build (no changes in track-b/)."
+          exit 0
+        fi
+        echo "[*] Building Track B (Actuator)..."
+        docker build \
+          -f track-b/Dockerfile \
+          -t ${_REPO}/${_SERVICE_B}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_B}:latest \
+          track-b
+        echo "[+] Track B build complete."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 6: Deploy Track A to Cloud Run
+  # --no-allow-unauthenticated: Constitutional AI enforcement at infra layer.
+  # --ingress=internal: blocks external traffic (matches terraform/cloudrun.tf).
+  # Sizing matches free tier: cpu=1, memory=512Mi, min=0, max=1.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'deploy-track-a'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_TRACK_A:-false}" != "true" ]]; then
+          echo "[*] Skipping Track A deploy (no changes in track-a/)."
+          exit 0
+        fi
+        echo "[*] Deploying Track A (Control & Planning Loop) to Cloud Run..."
+        gcloud run deploy ${_SERVICE_A} \
+          --image=${_REPO}/${_SERVICE_A}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8080 \
+          --set-env-vars="LEDGER_PATH=/var/log/ledger,POLICY_DIR=/policy,RAG_CORPUS_PATH=/rag/docs,TRACK_B_URL=https://track-b-actuator-$(gcloud run services describe ${_SERVICE_B} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'track-b-actuator-xxxxx-uc.a.run.app')"
+        echo "[+] Track A deployed successfully."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 7: Deploy Track B to Cloud Run
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'deploy-track-b'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_TRACK_B:-false}" != "true" ]]; then
+          echo "[*] Skipping Track B deploy (no changes in track-b/)."
+          exit 0
+        fi
+        echo "[*] Deploying Track B (Actuator) to Cloud Run..."
+        gcloud run deploy ${_SERVICE_B} \
+          --image=${_REPO}/${_SERVICE_B}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8081 \
+          --set-env-vars="LEDGER_PATH=/var/log/ledger,TOOL_ALLOWLIST=/policy/tool-allowlist.txt"
+        echo "[+] Track B deployed successfully."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 8: Terraform Validation
+  # Only validates if terraform/ files changed. Does NOT apply.
+  # terraform plan and terraform apply are [HUMAN-APPROVAL-REQUIRED] checkpoints
+  # #3 and #4. This step only validates syntax.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'validate-terraform'
+    name: 'hashicorp/terraform:1.9'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_TERRAFORM:-false}" != "true" ]]; then
+          echo "[*] Skipping Terraform validation (no changes in terraform/)."
+          exit 0
+        fi
+        echo "[*] Validating Terraform configuration..."
+        terraform -chdir=terraform init -backend=false
+        terraform -chdir=terraform validate
+        echo "[+] Terraform configuration is valid."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 9: Build Executive Quartet (Sheryl, Aura, Malory, Krieger)
+  # Builds all four executive agents from the executive-quartet directory.
+  # Only builds if executive-quartet/ files changed.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'build-quartet'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_QUARTET:-false}" != "true" ]]; then
+          echo "[*] Skipping Executive Quartet build (no changes in executive-quartet/)."
+          exit 0
+        fi
+        echo "[*] Building Sheryl (Executive Quartet)..."
+        docker build \
+          -f executive-quartet/sheryl/Dockerfile \
+          -t ${_REPO}/${_SERVICE_SHERYL}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_SHERYL}:latest \
+          executive-quartet/sheryl
+        echo "[+] Sheryl build complete."
+
+        echo "[*] Building Aura (Executive Quartet)..."
+        docker build \
+          -f executive-quartet/aura/Dockerfile \
+          -t ${_REPO}/${_SERVICE_AURA}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_AURA}:latest \
+          executive-quartet/aura
+        echo "[+] Aura build complete."
+
+        echo "[*] Building Malory (Executive Quartet)..."
+        docker build \
+          -f executive-quartet/malory/Dockerfile \
+          -t ${_REPO}/${_SERVICE_MALORY}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_MALORY}:latest \
+          executive-quartet/malory
+        echo "[+] Malory build complete."
+
+        echo "[*] Building Krieger (Executive Quartet)..."
+        docker build \
+          -f executive-quartet/krieger/Dockerfile \
+          -t ${_REPO}/${_SERVICE_KRIEGER}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_KRIEGER}:latest \
+          executive-quartet/krieger
+        echo "[+] Krieger build complete."
+        echo "[+] Executive Quartet build complete (all 4 agents)."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 10: Build Telegram Bridge
+  # Only builds if telegram-bridge/ files changed.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'build-telegram'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_TELEGRAM:-false}" != "true" ]]; then
+          echo "[*] Skipping Telegram Bridge build (no changes in telegram-bridge/)."
+          exit 0
+        fi
+        echo "[*] Building Telegram Bridge..."
+        docker build \
+          -f telegram-bridge/Dockerfile \
+          -t ${_REPO}/${_SERVICE_TELEGRAM}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_TELEGRAM}:latest \
+          telegram-bridge
+        echo "[+] Telegram Bridge build complete."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 11: Build Self-Remediation Engine
+  # Only builds if self-remediation/ files changed.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'build-remediation'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_REMEDIATION:-false}" != "true" ]]; then
+          echo "[*] Skipping Self-Remediation build (no changes in self-remediation/)."
+          exit 0
+        fi
+        echo "[*] Building Self-Remediation Engine..."
+        docker build \
+          -f self-remediation/Dockerfile \
+          -t ${_REPO}/${_SERVICE_REMEDIATION}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_REMEDIATION}:latest \
+          self-remediation
+        echo "[+] Self-Remediation Engine build complete."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 12: Build Barry Preservation (DO-Lobe Migration)
+  # Builds the preservation/manifest image — NO Cloud Run deployment.
+  # Barry is a DigitalOcean → target-platform migration artifact stored
+  # as a reproducible container image.
+  # Only builds if barry-preservation/ files changed.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'build-barry-preservation'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_BARRY:-false}" != "true" ]]; then
+          echo "[*] Skipping Barry Preservation build (no changes in barry-preservation/)."
+          exit 0
+        fi
+        echo "[*] Building Barry Preservation (DO-Lobe Migration)..."
+        docker build \
+          -f barry-preservation/Dockerfile \
+          -t ${_REPO}/${_SERVICE_BARRY}:${SHORT_SHA} \
+          -t ${_REPO}/${_SERVICE_BARRY}:latest \
+          barry-preservation
+        echo "[+] Barry Preservation build complete."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 13: Deploy Executive Quartet to Cloud Run
+  # Deploys all four executive agents with constitutional AI enforcement.
+  # Ports: sheryl=8083, aura=8084, malory=8085, krieger=8086.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'deploy-quartet'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_QUARTET:-false}" != "true" ]]; then
+          echo "[*] Skipping Executive Quartet deploy (no changes in executive-quartet/)."
+          exit 0
+        fi
+        echo "[*] Deploying Sheryl to Cloud Run..."
+        gcloud run deploy ${_SERVICE_SHERYL} \
+          --image=${_REPO}/${_SERVICE_SHERYL}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8083
+        echo "[+] Sheryl deployed."
+
+        echo "[*] Deploying Aura to Cloud Run..."
+        gcloud run deploy ${_SERVICE_AURA} \
+          --image=${_REPO}/${_SERVICE_AURA}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8084
+        echo "[+] Aura deployed."
+
+        echo "[*] Deploying Malory to Cloud Run..."
+        gcloud run deploy ${_SERVICE_MALORY} \
+          --image=${_REPO}/${_SERVICE_MALORY}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8085
+        echo "[+] Malory deployed."
+
+        echo "[*] Deploying Krieger to Cloud Run..."
+        gcloud run deploy ${_SERVICE_KRIEGER} \
+          --image=${_REPO}/${_SERVICE_KRIEGER}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8086
+        echo "[+] Krieger deployed."
+        echo "[+] Executive Quartet deployed (all 4 agents)."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 14: Deploy Telegram Bridge to Cloud Run
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'deploy-telegram'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_TELEGRAM:-false}" != "true" ]]; then
+          echo "[*] Skipping Telegram Bridge deploy (no changes in telegram-bridge/)."
+          exit 0
+        fi
+        echo "[*] Deploying Telegram Bridge to Cloud Run..."
+        gcloud run deploy ${_SERVICE_TELEGRAM} \
+          --image=${_REPO}/${_SERVICE_TELEGRAM}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8088
+        echo "[+] Telegram Bridge deployed."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Step 15: Deploy Self-Remediation Engine to Cloud Run
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'deploy-remediation'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/build_flags.env
+        if [[ "$${BUILD_REMEDIATION:-false}" != "true" ]]; then
+          echo "[*] Skipping Self-Remediation deploy (no changes in self-remediation/)."
+          exit 0
+        fi
+        echo "[*] Deploying Self-Remediation Engine to Cloud Run..."
+        gcloud run deploy ${_SERVICE_REMEDIATION} \
+          --image=${_REPO}/${_SERVICE_REMEDIATION}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --no-allow-unauthenticated \
+          --service-account=${_SERVICE_ACCOUNT} \
+          --cpu=1 \
+          --memory=512Mi \
+          --min-instances=0 \
+          --max-instances=1 \
+          --ingress=internal \
+          --port=8087
+        echo "[+] Self-Remediation Engine deployed."
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Images tracked by this build (Cloud Build uses these for caching / cleanup)
+# ──────────────────────────────────────────────────────────────────────────────
+images:
+  - '${_REPO}/${_SERVICE_INFERENCE}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_INFERENCE}:latest'
+  - '${_REPO}/${_SERVICE_A}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_A}:latest'
+  - '${_REPO}/${_SERVICE_B}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_B}:latest'
+  - '${_REPO}/${_SERVICE_SHERYL}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_SHERYL}:latest'
+  - '${_REPO}/${_SERVICE_AURA}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_AURA}:latest'
+  - '${_REPO}/${_SERVICE_MALORY}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_MALORY}:latest'
+  - '${_REPO}/${_SERVICE_KRIEGER}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_KRIEGER}:latest'
+  - '${_REPO}/${_SERVICE_REMEDIATION}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_REMEDIATION}:latest'
+  - '${_REPO}/${_SERVICE_TELEGRAM}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_TELEGRAM}:latest'
+  - '${_REPO}/${_SERVICE_BARRY}:${SHORT_SHA}'
+  - '${_REPO}/${_SERVICE_BARRY}:latest'
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Timeout: 20 minutes (allows for Inference-Tokenomics boot + downstream builds)
+# ──────────────────────────────────────────────────────────────────────────────
+timeout: 1200s

@@ -1,0 +1,319 @@
+{
+  "files": {
+    "openviking/SOP-001-system-architecture.md": {
+      "hash": "21c1cf494bbc70ac7eac2898d3443dad76b645a678e6f96ab7853b2ecef16e07",
+      "path": "/home/olly/core-engineering-system/rag/docs/openviking/SOP-001-system-architecture.md",
+      "size_bytes": 2024
+    },
+    "openviking/SOP-002-incident-response.md": {
+      "hash": "a628d257b85164b95ecfe3aee8ed760f4049e40f3ee43760562d75244e9efe6d",
+      "path": "/home/olly/core-engineering-system/rag/docs/openviking/SOP-002-incident-response.md",
+      "size_bytes": 2764
+    }
+  },
+  "generated_at": "2026-07-20T00:17:23.481576+00:00",
+  "index": [
+    {
+      "chunk_id": "2bb07e3f6e6469f2",
+      "domain": "general",
+      "size_bytes": 380,
+      "source_file": ".gitignore"
+    },
+    {
+      "chunk_id": "973c0c43f5770d91",
+      "domain": "general",
+      "size_bytes": 17690,
+      "source_file": "cloudbuild.yaml"
+    },
+    {
+      "chunk_id": "64af928fc57c9091",
+      "domain": "general",
+      "size_bytes": 8404,
+      "source_file": "README.md"
+    },
+    {
+      "chunk_id": "2b4e3cb4879e5edc",
+      "domain": "general",
+      "size_bytes": 1225,
+      "source_file": "conftest.py"
+    },
+    {
+      "chunk_id": "d88eea0ee435c040",
+      "domain": "general",
+      "size_bytes": 2321,
+      "source_file": "docker-compose.yml"
+    },
+    {
+      "chunk_id": "8856be1b43f5e2e5",
+      "domain": "general",
+      "size_bytes": 992,
+      "source_file": ".env.example"
+    },
+    {
+      "chunk_id": "82472a4cdc5400df",
+      "domain": "general",
+      "size_bytes": 1438,
+      "source_file": "manifest.json"
+    },
+    {
+      "chunk_id": "ff0ffc6c44c4bcdc",
+      "domain": "general",
+      "size_bytes": 4256,
+      "source_file": "CEM_Update.txt"
+    },
+    {
+      "chunk_id": "22124a4014dcde6a",
+      "domain": "general",
+      "size_bytes": 3639,
+      "source_file": "wrangler.toml"
+    },
+    {
+      "chunk_id": "0f98bd67053f190e",
+      "domain": "general",
+      "size_bytes": 3067,
+      "source_file": "manifest_factory.py.txt"
+    },
+    {
+      "chunk_id": "cf1fe708b9d193a1",
+      "domain": "general",
+      "size_bytes": 2242,
+      "source_file": "infisical_vault_sync.sh"
+    },
+    {
+      "chunk_id": "ec0ec5a8ce59444d",
+      "domain": "general",
+      "size_bytes": 8636,
+      "source_file": "AGENTS.md"
+    },
+    {
+      "chunk_id": "bc83e85521355c98",
+      "domain": "general",
+      "size_bytes": 13323,
+      "source_file": "tests/allowlist-mutation-test.py"
+    },
+    {
+      "chunk_id": "65cb9702fbe9710e",
+      "domain": "general",
+      "size_bytes": 525,
+      "source_file": "tests/manifest.json"
+    },
+    {
+      "chunk_id": "e9a4fefe7d31d46a",
+      "domain": "general",
+      "size_bytes": 8986,
+      "source_file": "tests/ledger-chain-test.py"
+    },
+    {
+      "chunk_id": "db05dbaa6e187cd3",
+      "domain": "general",
+      "size_bytes": 482,
+      "source_file": "policy/tool-allowlist.txt"
+    },
+    {
+      "chunk_id": "8d892032b03c01f3",
+      "domain": "general",
+      "size_bytes": 314,
+      "source_file": "policy/log-reasoning-steps.rego"
+    },
+    {
+      "chunk_id": "f8198742e231e95e",
+      "domain": "general",
+      "size_bytes": 284,
+      "source_file": "policy/require-namespace-scope.rego"
+    },
+    {
+      "chunk_id": "a219aa6bca8f70d6",
+      "domain": "general",
+      "size_bytes": 888,
+      "source_file": "policy/manifest.json"
+    },
+    {
+      "chunk_id": "2cc47efa5335535e",
+      "domain": "general",
+      "size_bytes": 291,
+      "source_file": "policy/deny-broad-write.rego"
+    },
+    {
+      "chunk_id": "ed5ddeaf8b8403f5",
+      "domain": "general",
+      "size_bytes": 312,
+      "source_file": "policy/deny-destroy-prod.rego"
+    },
+    {
+      "chunk_id": "31174f642a04865f",
+      "domain": "general",
+      "size_bytes": 230,
+      "source_file": "agency-agents/package.json"
+    },
+    {
+      "chunk_id": "05f0f85a42670e65",
+      "domain": "general",
+      "size_bytes": 423,
+      "source_file": "agency-agents/manifest.json"
+    },
+    {
+      "chunk_id": "a0afd14f36dc7745",
+      "domain": "general",
+      "size_bytes": 692,
+      "source_file": "agency-agents/daemon/manifest.json"
+    },
+    {
+      "chunk_id": "fc9fa02b64d7024d",
+      "domain": "general",
+      "size_bytes": 1649,
+      "source_file": "agency-agents/daemon/teams.json"
+    },
+    {
+      "chunk_id": "d79463c1dc20a751",
+      "domain": "general",
+      "size_bytes": 7961,
+      "source_file": "agency-agents/daemon/main.py"
+    },
+    {
+      "chunk_id": "c66b85c4418ec06c",
+      "domain": "general",
+      "size_bytes": 949,
+      "source_file": "agency-agents/daemon/Dockerfile"
+    },
+    {
+      "chunk_id": "e4dbe73e04b6ebab",
+      "domain": "general",
+      "size_bytes": 7083,
+      "source_file": "src/scraper.js"
+    },
+    {
+      "chunk_id": "3f3ba4a9cdf56bb2",
+      "domain": "general",
+      "size_bytes": 488,
+      "source_file": "src/manifest.json"
+    },
+    {
+      "chunk_id": "2b8cb3ad2b3f8df4",
+      "domain": "general",
+      "size_bytes": 18886,
+      "source_file": "src/router.js"
+    },
+    {
+      "chunk_id": "375d642200ea3c6b",
+      "domain": "control-loop",
+      "size_bytes": 1419,
+      "source_file": "track-a/__init__.py"
+    },
+    {
+      "chunk_id": "3d6dcfe635705a34",
+      "domain": "control-loop",
+      "size_bytes": 47,
+      "source_file": "track-a/requirements.txt"
+    },
+    {
+      "chunk_id": "614caf6f6a49603c",
+      "domain": "control-loop",
+      "size_bytes": 962,
+      "source_file": "track-a/manifest.json"
+    },
+    {
+      "chunk_id": "b0faf06aa9e1a166",
+      "domain": "control-loop",
+      "size_bytes": 13223,
+      "source_file": "track-a/main.py"
+    },
+    {
+      "chunk_id": "c5c4fc86fe1e7ea3",
+      "domain": "control-loop",
+      "size_bytes": 3769,
+      "source_file": "track-a/claw_router_client.py"
+    },
+    {
+      "chunk_id": "dc6cbbab24dcd9a4",
+      "domain": "control-loop",
+      "size_bytes": 791,
+      "source_file": "track-a/Dockerfile"
+    },
+    {
+      "chunk_id": "1caeeb728141869c",
+      "domain": "control-loop",
+      "size_bytes": 4545,
+      "source_file": "track-a/opa_eval.py"
+    },
+    {
+      "chunk_id": "18f23382f72737c0",
+      "domain": "general",
+      "size_bytes": 3639,
+      "source_file": "mcp/README.md"
+    },
+    {
+      "chunk_id": "d0a21e84b86274b8",
+      "domain": "general",
+      "size_bytes": 381,
+      "source_file": "mcp/manifest.json"
+    },
+    {
+      "chunk_id": "321e2e0d5902c53c",
+      "domain": "general",
+      "size_bytes": 3428,
+      "source_file": "mcp/tools/codeboard-combo.dryrun.py"
+    },
+    {
+      "chunk_id": "3c801dff395fbfa0",
+      "domain": "general",
+      "size_bytes": 670,
+      "source_file": "mcp/tools/manifest.json"
+    },
+    {
+      "chunk_id": "d1bfeed4bd618e51",
+      "domain": "general",
+      "size_bytes": 629,
+      "source_file": "mcp/tools/agency-agents-factory.json"
+    },
+    {
+      "chunk_id": "f47033ef1689473c",
+      "domain": "general",
+      "size_bytes": 1122,
+      "source_file": "mcp/tools/codeboard-combo.json"
+    },
+    {
+      "chunk_id": "3d6dcfe635705a34",
+      "domain": "actuator",
+      "size_bytes": 47,
+      "source_file": "track-b/requirements.txt"
+    },
+    {
+      "chunk_id": "8fd460ab9ac9d17a",
+      "domain": "actuator",
+      "size_bytes": 618,
+      "source_file": "track-b/manifest.json"
+    },
+    {
+      "chunk_id": "98e59c4bcde2407c",
+      "domain": "actuator",
+      "size_bytes": 8589,
+      "source_file": "track-b/main.py"
+    },
+    {
+      "chunk_id": "b4c1bc3759bcd613",
+      "domain": "actuator",
+      "size_bytes": 684,
+      "source_file": "track-b/Dockerfile"
+    }
+  ],
+  "modules": [
+    ".",
+    "agency-agents",
+    "agency-agents/daemon",
+    "mcp",
+    "mcp/tools",
+    "policy",
+    "src",
+    "tests",
+    "track-a",
+    "track-b"
+  ],
+  "phase": "OpenViking RAG Memory Seed \u2014 Local Vector Sync",
+  "step": 4,
+  "summary": {
+    "total_bytes_indexed": 162619,
+    "total_files": 47,
+    "total_modules": 10
+  },
+  "version": "1.0"
+}

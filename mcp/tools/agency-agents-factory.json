@@ -1,0 +1,13 @@
+{
+  "name": "agency-agents-factory",
+  "version": "0.1.0",
+  "description": "Spawns isolated NEXUS-Sprint verification teams for newly requested modules via the agency-agents daemon.",
+  "inputs": {
+    "module_request": {"type": "object", "required": true, "fields": ["name", "path", "scope"]},
+    "team_size": {"type": "integer", "default": 4}
+  },
+  "outputs": {"team_id": "string", "verification_plan": "string"},
+  "backends": ["antigravity-ide", "taskmaster-ai"],
+  "daemon": "agency-agents-daemon:8082",
+  "isolation_contract": "per-team docker compose namespace, tmpfs /var/ledger, non-root user, no allUsers binding"
+}

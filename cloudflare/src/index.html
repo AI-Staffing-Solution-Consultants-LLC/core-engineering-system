@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cloudflare Pages Dashboard — Sheryl Operational Console">
+  <meta name="color-scheme" content="dark">
+
+  <title>Sheryl · Core Engineering Dashboard</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-signaling-url="">
+
+  <!-- ═══ Header ═══════════════════════════════════════════════════════════ -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo" aria-hidden="true">CE</div>
+      <div>
+        <div class="header-title">Sheryl Dashboard</div>
+        <div class="header-subtitle">Core Engineering System</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <span class="status-dot" id="status-dot" aria-label="System status"></span>
+      <span class="status-label" id="status-label">Connecting…</span>
+      <span class="header-time" id="header-time"></span>
+    </div>
+  </header>
+
+  <!-- ═══ Dashboard Grid ═══════════════════════════════════════════════════ -->
+  <main class="dashboard" role="main">
+
+    <!-- Quadrant 1: Video (WebRTC) — Top-Left -->
+    <section class="quadrant quadrant-video" id="quadrant-video" aria-labelledby="panel-video-label">
+      <div class="quadrant-header">
+        <div class="quadrant-label">
+          <span class="quadrant-icon icon-video" aria-hidden="true">▷</span>
+          <span class="quadrant-title" id="panel-video-label">Video Feed</span>
+        </div>
+        <span class="quadrant-badge badge-offline" id="video-badge">Disconnected</span>
+      </div>
+
+      <div class="quadrant-body">
+        <div class="video-widget" id="video-widget">
+          <div class="video-container hidden" id="video-container">
+            <video id="video-local" autoplay muted playsinline class="video-element video-local"></video>
+            <video id="video-remote" autoplay playsinline class="video-element video-remote hidden"></video>
+          </div>
+          <div class="video-placeholder" id="video-placeholder">
+            <div class="video-icon" aria-hidden="true">◉</div>
+            <span class="video-status" id="video-status">WebRTC feed inactive</span>
+          </div>
+          <div class="video-controls">
+            <button class="btn btn-primary" id="btn-video-connect" type="button">
+              Connect Feed
+            </button>
+            <button class="btn btn-ghost" id="btn-video-disconnect" type="button">
+              Disconnect
+            </button>
+            <button class="btn btn-ghost" id="btn-video-hide" type="button">
+              Hide Panel
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quadrant 2: Tokenomics — Top-Right -->
+    <section class="quadrant quadrant-tokenomics" id="quadrant-tokenomics" aria-labelledby="panel-tokenomics-label">
+      <div class="quadrant-header">
+        <div class="quadrant-label">
+          <span class="quadrant-icon icon-tokenomics" aria-hidden="true">$</span>
+          <span class="quadrant-title" id="panel-tokenomics-label">Tokenomics</span>
+        </div>
+        <span class="quadrant-badge badge-idle">No data</span>
+      </div>
+
+      <div class="quadrant-body">
+        <div class="tokenomics-grid">
+          <div class="token-card">
+            <div class="token-label">Total Supply</div>
+            <div class="token-value">—</div>
+            <div class="token-sub">Awaiting data</div>
+          </div>
+          <div class="token-card">
+            <div class="token-label">Circulating</div>
+            <div class="token-value">—</div>
+            <div class="token-sub">Awaiting data</div>
+          </div>
+          <div class="token-card">
+            <div class="token-label">Staked</div>
+            <div class="token-value">—</div>
+            <div class="token-sub">Awaiting data</div>
+          </div>
+          <div class="token-card">
+            <div class="token-label">24h Volume</div>
+            <div class="token-value">—</div>
+            <div class="token-sub">Awaiting data</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quadrant 3: Mission Control Stats — Bottom-Left -->
+    <section class="quadrant quadrant-mission" id="quadrant-mission" aria-labelledby="panel-mission-label">
+      <div class="quadrant-header">
+        <div class="quadrant-label">
+          <span class="quadrant-icon icon-mission" aria-hidden="true">⚡</span>
+          <span class="quadrant-title" id="panel-mission-label">Mission Control</span>
+        </div>
+        <span class="quadrant-badge badge-live" id="mission-badge">Live</span>
+      </div>
+
+      <div class="quadrant-body">
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Track A — Control Loop</div>
+            <div class="stat-value">—</div>
+            <div class="stat-delta delta-neutral" id="stat-track-a">status unknown</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Track B — Actuator</div>
+            <div class="stat-value">—</div>
+            <div class="stat-delta delta-neutral" id="stat-track-b">status unknown</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Plans</div>
+            <div class="stat-value">0</div>
+            <div class="stat-delta delta-neutral">awaiting telemetry</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Ledger Entries (24h)</div>
+            <div class="stat-value">0</div>
+            <div class="stat-delta delta-neutral">no activity</div>
+          </div>
+        </div>
+        <div class="video-controls" style="padding-top: var(--space-3)">
+          <button class="btn btn-ghost btn-sm" id="btn-mission-hide" type="button">
+            Hide Panel
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quadrant 4: Joint Browsing — Bottom-Right -->
+    <section class="quadrant quadrant-browsing" id="quadrant-browsing" aria-labelledby="panel-browsing-label">
+      <div class="quadrant-header">
+        <div class="quadrant-label">
+          <span class="quadrant-icon icon-browsing" aria-hidden="true">⊞</span>
+          <span class="quadrant-title" id="panel-browsing-label">Joint Browsing</span>
+        </div>
+        <span class="quadrant-badge badge-idle" id="browsing-badge">Idle</span>
+      </div>
+
+      <div class="quadrant-body">
+        <div class="browsing-iframe-wrapper" id="browsing-wrapper">
+          <div class="browsing-empty" id="browsing-empty">
+            <div class="browsing-empty-icon" aria-hidden="true">⊞</div>
+            <span class="browsing-empty-text">No active browsing session</span>
+          </div>
+          <iframe
+            class="browsing-iframe hidden"
+            id="browsing-iframe"
+            title="Joint browsing session"
+            sandbox="allow-scripts allow-same-origin"
+            loading="lazy"
+          ></iframe>
+        </div>
+        <div class="browsing-toolbar">
+          <button class="btn btn-ghost btn-sm" id="btn-browsing-hide" type="button">
+            Hide Panel
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══ Scripts ══════════════════════════════════════════════════════════ -->
+  <script type="module" src="video-widget.js"></script>
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>

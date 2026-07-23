@@ -1,0 +1,20 @@
+{
+  "module": "evidence",
+  "path": "evidence",
+  "generated_at": "2026-07-20T00:11:48.187Z",
+  "source": "local-rag-sync-loop",
+  "step": 4,
+  "file_count": 2,
+  "files": [
+    {
+      "file": "evidence/PHASE-5.md",
+      "sha256": "70038db0e0301d00",
+      "size_bytes": 4049
+    },
+    {
+      "file": "evidence/manifest.json",
+      "sha256": "2b97b155d4f25cdf",
+      "size_bytes": 289
+    }
+  ]
+}

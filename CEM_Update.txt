@@ -1,0 +1,51 @@
+text========================================================================================
+SYSTEM BLUEPRINT: HYBRID CORE-ENGINEERING & INFERENCE GRID UPDATE MANIFEST
+========================================================================================
+TARGET REPOSITORY STRUCTURE:
+/AISSC_Cloud_Workspace/
+├── .git/ (Centralized Bare Repo)
+├── agents-roster/ (The "Full Roster" clone)
+├── CEM-Modules/ (BM-01, BM-02, AUX-Systems-ops-module, Jobs-Tasks-Module)
+└── CORE-Modules/
+    ├── CEM-Core-Module/ ──► [TARGET LOCATION FOR TRACK A CONTROL LOOP]
+    ├── Self-Remediation-Module/ ──► [TARGET LOCATION FOR TRACK B ACTUATOR]
+    ├── Inference-Tokenomics/ ──► [TARGET LOCATION FOR EDGE AI TRANSFORMS]
+    ├── EIM-Core-Modules/ ──► [TARGET LOCATION FOR HERMES TRIO GATEWAY]
+    ├── PCI-Core-Module/ (Serverless Frontend Host)
+    └── ANDROID-APP-Module/
+
+----------------------------------------------------------------------------------------
+STEP-BY-STEP RECONCILIATION & IMPLEMENTATION ORDER
+----------------------------------------------------------------------------------------
+
+PHASE 1: SECURE CRYPTOGRAPHIC SCRAPE & LOCAL RECOVERY
+1. Execute a structural scan of /home/olly/, /home/olly/.gemini/, /home/olly/.google-cloud-sdk/, and /home/olly/.omo/.
+2. Harvest all existing *.tf, *.tfvars, terraform.tfstate, and local project environment variables.
+3. Use found keys to execute a Universal Auth handshake with Infisical (/v1/auth/universal-auth/login) to verify machine identity trust hooks.
+4. Export found credentials to '/AISSC_Cloud_Workspace/.recovery_manifest.json'. Do NOT overwrite active source parameters.
+
+PHASE 2: CLOUDFLARE EDGE CAPACITATION & INFERENCE ROUTING
+1. Query the live Cloudflare AI Gateway topology via the discovered account API token.
+2. Bind Wrangler settings to provision two critical KV stores: OBSERVABILITY_STATE and INFISICAL_CACHE.
+3. Deploy an asynchronous Cloudflare Queue named 'remediation-events' to separate tracing from runtime agent processing loops.
+4. Instantiate the dynamic 'router.js' edge script to cache repetitive tokenomics executions and execute instant failovers (Gemini <-> OpenAI) when telemetry reports degradation.
+5. Deploy the edge browser rendering component ('scraper.js') to parse raw documentation strings for RAG pipeline ingestion.
+
+PHASE 3: INTEGRATION OF THE C-P-A COGNITIVE ARCHITECTURE
+1. Track A (Control Loop Integration): Port the Flask main.py control script into /CORE-Modules/CEM-Core-Module/CEM-CM-x/. Configure all outbound planning tokens to flow directly through the Cloudflare Edge Gateway URL proxy.
+2. Track B (Constitutional Actuator Integration): Port the actuator script into /CORE-Modules/Self-Remediation-Module/SRM-x/. Set up a hard configuration string checking all incoming shell interactions against 'policy/tool-allowlist.txt' prior to local execution.
+3. SHA-256 Ledger System: Reinforce both tracks to write every reasoning log and execution snapshot to a shared, tamper-evident JSONL audit pipeline.
+
+PHASE 4: INFRASTRUCTURE AUTOMATION (GOOGLE CLOUD BUILD)
+1. Formulate a path-aware 'cloudbuild.yaml' file linked to project: 'aissc-core-engine-self-dep' and region: 'us-central1'.
+2. Structure conditional triggers: compilation and deployment steps must execute only if files are changed inside their respective directory trees (e.g., git changes within /Inference-Tokenomics/ triggers a rebuild of CM-IT-x).
+3. Set the build priority matrix to instantiate and verify the Inference-Tokenomics block FIRST before spinning up downstream dependent agents.
+4. Embed container flags: '--no-allow-unauthenticated', cpu=1, and memory=512Mi.
+
+PHASE 5: INITIALIZING THE AUTONOMOUS ENGINEERING ENGINE
+1. Configure the deployed OpenCode container to act in place of the Executive Interface Module (EIM) temporarily.
+2. Equip the engine with the 'opencode-controller' skill to receive manual shell directives, pull context from the OpenViking RAG matrix, generate module updates, document them to GitHub, and let Cloud Build handle the progressive rollout of the remaining system blocks autonomously.
+
+========================================================================================
+END OF MANIFEST - PROMETHEUS PROTOCOL ENFORCED
+Use code with caution.
