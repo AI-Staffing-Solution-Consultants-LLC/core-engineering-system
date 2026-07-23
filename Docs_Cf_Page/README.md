@@ -1,16 +1,63 @@
-# OpenViking Memory Mesh — Ingest Portal v2
+# OpenViking Memory Mesh — Ingest Portal v2 (Cloudflare Worker)
 
-Cloudflare Pages deployment for submitting documentation URLs and raw text into the OpenViking RAG ingestion queue.
+Cloudflare Worker deployment for submitting documentation URLs and raw text into the OpenViking RAG ingestion queue.
+
+## Migration from Pages to Worker
+
+This project was migrated from Cloudflare Pages (v1) to Cloudflare Workers (v2) to support proper multi-environment deployments (dev/staging/prod).
+
+**Why Workers instead of Pages?**
+- Pages only supports 2 environments (Production + Preview)
+- Workers support unlimited environments via `wrangler.toml`
+- Each environment gets its own URL, secrets, and configuration
+- Proper isolation for dev → staging → prod workflow
 
 ## Deployment
 
+| Environment | Worker Name | URL |
+|---|---|---|
+| **Dev** | `openviking-ingest-dev` | `https://openviking-ingest-dev.automations-unstoppable.workers.dev` |
+| **Staging** | `openviking-ingest-staging` | `https://openviking-ingest-staging.automations-unstoppable.workers.dev` |
+| **Production** | `openviking-ingest-prod` | `https://openviking-ingest-prod.automations-unstoppable.workers.dev` |
+
 | Property | Value |
 |---|---|
-| **Live URL** | `https://openclaw-gateway.pages.dev` |
-| **Project Name** | `openclaw-gateway` |
 | **Cloudflare Account** | `197a5689d9c0df2855f017dcbfc59f4a` |
-| **Runtime Mode** | `_worker.js` (Advanced Mode) |
 | **Deployed** | 2026-07-23 |
+
+## Files
+
+```
+Docs_Cf_Page/
+├── src/
+│   └── index.js          # Worker: serves HTML + API proxy + markdown conversion
+├── wrangler.toml         # Multi-environment config (dev/staging/prod)
+├── package.json          # Deploy scripts
+└── README.md             # This file
+```
+
+## Deploy Commands
+
+```bash
+# Navigate to project
+cd Docs_Cf_Page
+
+# Deploy to dev (for testing)
+npm run deploy:dev
+# or: wrangler deploy --env dev
+
+# Deploy to staging
+npm run deploy:staging
+# or: wrangler deploy --env staging
+
+# Deploy to production
+npm run deploy:prod
+# or: wrangler deploy --env production
+
+# View logs
+npm run tail:dev
+npm run tail:prod
+```
 
 ## What's New in v2
 
@@ -21,43 +68,7 @@ Cloudflare Pages deployment for submitting documentation URLs and raw text into 
   - `OpenCode Transcripts` — session logs, agent conversations, tool outputs
   - `Planned Concepts` — design docs, RFCs, future architecture proposals
 - **Removed confusing internal labels** (Barry_Lead_Gen, Track_A_Control, etc.)
-
-## Architecture
-
-```
-Browser Form --POST--> /api/submit-scrape --> _worker.js (edge)
-                                                  |
-                    +-----------------------------+
-                    |
-              URL mode: forward target_url to AI Gateway
-              Text mode: convert to Markdown, then forward
-                    |
-                    v
-      Cloudflare AI Gateway (openclaw-gateway)
-      gateway.ai.cloudflare.com/v1/.../openclaw-gateway/compat/chat/completions
-                    |
-                    v
-      OpenClaw RAG Ingestion Pipeline
-```
-
-### Why `_worker.js` instead of `functions/`?
-
-Pages direct-upload API does not compile file-based `functions/` during deployment.
-The `_worker.js` approach (Advanced Mode) uses a single pre-compiled worker with
-manual routing. Same Workers runtime, same performance — just a different bundling path.
-
-**Do NOT connect GitHub to this Pages project.** Git integration causes build failures
-with `_worker.js`. Use direct-upload deployments only.
-
-## Files
-
-```
-Docs_Cf_Page/
-├── public/
-│   ├── index.html      # Frontend form (responsive, dark theme, dual mode)
-│   └── _worker.js      # Edge function: AI Gateway proxy + markdown conversion
-└── README.md           # This file
-```
+- **Multi-environment support**: dev/staging/prod isolation
 
 ## API Reference
 
@@ -95,25 +106,9 @@ Docs_Cf_Page/
 }
 ```
 
-**Error Response (4xx/5xx):**
-```json
-{
-  "success": false,
-  "error": "Gateway rejected request (HTTP 401): Unauthorized",
-  "context_label": "Component_Documentation"
-}
-```
-
-### Outbound Headers (injected by edge function)
-
-| Header | Value |
-|---|---|
-| `X-Agent-ID` | `openviking-web-ingest-portal` |
-| `X-Task-Type` | `critical-engineering` |
-
 ### Text-to-Markdown Conversion
 
-When `text_content` is submitted, the edge function wraps it in structured Markdown:
+When `text_content` is submitted, the Worker wraps it in structured Markdown:
 
 ```markdown
 ---
@@ -129,55 +124,12 @@ format: markdown
 (escaped text content here)
 ```
 
-### Gateway Endpoint
+### Outbound Headers
 
-```
-https://gateway.ai.cloudflare.com/v1/197a5689d9c0df2855f017dcbfc59f4a/openclaw-gateway/compat/chat/completions
-```
-
-This is a Cloudflare AI Gateway proxy. It routes to the OpenClaw chat completions
-endpoint. Authentication is handled at the gateway layer — the edge function does
-not inject gateway auth tokens.
-
-## Redeployment
-
-### Direct upload (preferred)
-
-```bash
-# Ensure wrangler is authenticated
-wrangler whoami
-
-# IMPORTANT: The repo root has a wrangler.toml for a different project.
-# Temporarily rename it before Pages deploy.
-mv wrangler.toml wrangler.toml.bak
-
-# Deploy from the public/ directory
-CLOUDFLARE_API_TOKEN=<your-token> CLOUDFLARE_ACCOUNT_ID=197a5689d9c0df2855f017dcbfc59f4a \
-  wrangler pages deploy ./public/ --project-name=openclaw-gateway --branch=main
-
-# Restore the root config
-mv wrangler.toml.bak wrangler.toml
-```
-
-### Why no Git integration?
-
-Pages Git builds fail with `_worker.js` (Advanced Mode) because the build system
-cannot properly compile the single-worker format. Direct upload bypasses this issue.
-
-The repo (`Docs_Cf_Page/`) serves as the source of truth. After making changes:
-1. Commit/push to the repo
-2. Run the direct-upload wrangler command above
-3. The live site updates immediately
-
-## Custom Domain
-
-To map a custom domain:
-
-**Dashboard → Workers & Pages → `openclaw-gateway` → Custom domains → Connect domain**
-
-Enter: `docs.ai-staffing-solutions-consultants.online`
-
-SSL will auto-provision. The domain must have a CNAME pointing to `openclaw-gateway.pages.dev`.
+| Header | Value |
+|---|---|
+| `X-Agent-ID` | `openviking-web-ingest-portal` |
+| `X-Task-Type` | `critical-engineering` |
 
 ## Integration Notes
 
@@ -195,28 +147,61 @@ When integrating the ingest portal:
 The existing WebRTC infrastructure (`cloudflare/workers/webrtc-signaling.js`) handles
 video chat. The ingest portal is a separate concern:
 
-- **Different Cloudflare project** (`openclaw-gateway` vs Sheryl Dashboard)
+- **Different Cloudflare project** (`openviking-ingest` Worker vs Sheryl Dashboard)
 - **No shared state** — the ingest portal is stateless
-- **Different domain** — `openclaw-gateway.pages.dev` vs the dashboard domain
+- **Different domain** — `*.workers.dev` vs the dashboard domain
 
 To unify under one domain later:
-1. Add a custom domain to the `openclaw-gateway` Pages project
+1. Add a custom domain to the Worker (via Cloudflare dashboard or API)
 2. Or use Cloudflare Workers to route paths to different backends
 
 ### OpenViking RAG Pipeline
 
-The edge function forwards to the AI Gateway, which proxies to OpenClaw.
+The Worker forwards to the AI Gateway, which proxies to OpenClaw.
 The gateway endpoint uses the OpenClaw chat completions format. The RAG ingestion
 happens downstream — this portal is just the submission surface.
 
 Text documents are converted to Markdown before forwarding so the RAG pipeline
 can parse them as structured documents rather than raw text blobs.
 
+## Environment Variables
+
+| Variable | Dev | Staging | Production |
+|---|---|---|---|
+| `APP_NAME` | `openviking-ingest-portal` | `openviking-ingest-portal` | `openviking-ingest-portal` |
+| `ENVIRONMENT` | `dev` | `staging` | `production` |
+| `LOG_LEVEL` | `debug` | `info` | `warn` |
+
 ## Secrets & Auth
 
 | Secret | Where | Purpose |
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | Local env / CI | Wrangler deploy auth |
-| AI Gateway auth | Gateway config (not in this code) | Gateway→OpenClaw auth |
+| AI Gateway auth | Gateway config (not in code) | Gateway→OpenClaw auth |
 
-**Never commit API tokens.** Store in Infisical or Cloudflare dashboard secrets.
+**Never commit API tokens.** Store in Infisical or use `wrangler secret put`.
+
+## Custom Domain
+
+To map a custom domain to a specific environment:
+
+```bash
+# Via Cloudflare dashboard:
+# Workers & Pages → openviking-ingest-dev (or -staging / -prod) 
+# → Triggers → Add Custom Domain
+# Enter: docs-dev.ai-staffing-solutions-consultants.online
+```
+
+Or via API:
+```bash
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/197a5689d9c0df2855f017dcbfc59f4a/workers/domains" \
+  -H "Authorization: Bearer <API_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"service":"openviking-ingest-prod","environment":"production","hostname":"docs.ai-staffing-solutions-consultants.online"}'
+```
+
+## Legacy Pages Deployment
+
+The original Pages deployment at `openclaw-gateway.pages.dev` is deprecated.
+The DNS CNAME for `docs.ai-staffing-solutions-consultants.online` should be updated
+from `openclaw-gateway.pages.dev` to the new Worker custom domain once configured.
