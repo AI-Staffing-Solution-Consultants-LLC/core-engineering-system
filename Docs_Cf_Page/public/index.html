@@ -37,7 +37,7 @@
       border-radius: 12px;
       padding: 2.5rem;
       width: 100%;
-      max-width: 480px;
+      max-width: 520px;
     }
 
     .logo {
@@ -69,7 +69,8 @@
     }
 
     input[type="url"],
-    select {
+    select,
+    textarea {
       width: 100%;
       padding: 0.6rem 0.75rem;
       background: var(--bg);
@@ -79,15 +80,24 @@
       font-size: 0.9rem;
       outline: none;
       transition: border-color 0.15s;
+      font-family: inherit;
     }
 
     input[type="url"]:focus,
-    select:focus {
+    select:focus,
+    textarea:focus {
       border-color: var(--accent);
     }
 
-    input[type="url"]::placeholder {
+    input[type="url"]::placeholder,
+    textarea::placeholder {
       color: #475569;
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+      line-height: 1.5;
     }
 
     .field { margin-bottom: 1.1rem; }
@@ -105,6 +115,38 @@
       background: var(--surface);
       color: var(--text);
     }
+
+    .mode-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 0.5rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .mode-btn.active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .mode-btn:hover:not(.active) {
+      border-color: #334155;
+      color: var(--text);
+    }
+
+    .hidden { display: none !important; }
 
     .submit-btn {
       width: 100%;
@@ -174,23 +216,38 @@
   <div class="card">
     <div class="logo">OpenViking</div>
     <h1>Memory Mesh Ingest</h1>
-    <p class="subtitle">Submit a target URL for RAG ingestion into the OpenViking knowledge pipeline.</p>
+    <p class="subtitle">Submit documentation URLs or raw text for RAG ingestion into the OpenViking knowledge pipeline.</p>
 
     <form id="ingest_form" autocomplete="off">
-      <div class="field">
+
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button type="button" class="mode-btn active" data-mode="url" id="mode_url">URL</button>
+        <button type="button" class="mode-btn" data-mode="text" id="mode_text">Text</button>
+      </div>
+
+      <!-- URL Field -->
+      <div class="field" id="url_field">
         <label for="target_url">Target URL</label>
         <input type="url" id="target_url" name="target_url"
                placeholder="https://example.com/docs" required>
       </div>
 
+      <!-- Text Field -->
+      <div class="field hidden" id="text_field">
+        <label for="text_content">Document Text</label>
+        <textarea id="text_content" name="text_content"
+                  placeholder="Paste or type your documentation text here. It will be converted to Markdown and ingested into the RAG pipeline."></textarea>
+        <p style="font-size:0.75rem; color:#475569; margin-top:0.35rem;">The system auto-converts this to .md format before ingestion.</p>
+      </div>
+
+      <!-- Category -->
       <div class="field">
-        <label for="context_label">Context Label</label>
+        <label for="context_label">Category</label>
         <select id="context_label" name="context_label" required>
-          <option value="Barry_Lead_Gen">Barry_Lead_Gen</option>
-          <option value="Track_A_Control">Track_A_Control</option>
-          <option value="Track_B_Actuator">Track_B_Actuator</option>
-          <option value="Inference_Tokenomics">Inference_Tokenomics</option>
-          <option value="General_SOP" selected>General_SOP</option>
+          <option value="Component_Documentation" selected>Component Documentation</option>
+          <option value="OpenCode_Transcripts">OpenCode Transcripts</option>
+          <option value="Planned_Concepts">Planned Concepts</option>
         </select>
       </div>
 
@@ -207,11 +264,41 @@
 
   <script>
     (function () {
-      const form    = document.getElementById('ingest_form');
-      const btn     = document.getElementById('submit_btn');
-      const label   = document.getElementById('btn_label');
-      const spinner = document.getElementById('btn_spinner');
-      const status  = document.getElementById('status_box');
+      const form        = document.getElementById('ingest_form');
+      const btn         = document.getElementById('submit_btn');
+      const label       = document.getElementById('btn_label');
+      const spinner     = document.getElementById('btn_spinner');
+      const status      = document.getElementById('status_box');
+      const modeUrlBtn  = document.getElementById('mode_url');
+      const modeTextBtn = document.getElementById('mode_text');
+      const urlField    = document.getElementById('url_field');
+      const textField   = document.getElementById('text_field');
+      const urlInput    = document.getElementById('target_url');
+      const textInput   = document.getElementById('text_content');
+
+      let currentMode = 'url';
+
+      function setMode(mode) {
+        currentMode = mode;
+        if (mode === 'url') {
+          modeUrlBtn.classList.add('active');
+          modeTextBtn.classList.remove('active');
+          urlField.classList.remove('hidden');
+          textField.classList.add('hidden');
+          urlInput.setAttribute('required', '');
+          textInput.removeAttribute('required');
+        } else {
+          modeTextBtn.classList.add('active');
+          modeUrlBtn.classList.remove('active');
+          urlField.classList.add('hidden');
+          textField.classList.remove('hidden');
+          urlInput.removeAttribute('required');
+          textInput.setAttribute('required', '');
+        }
+      }
+
+      modeUrlBtn.addEventListener('click',  () => setMode('url'));
+      modeTextBtn.addEventListener('click', () => setMode('text'));
 
       function setLoading(on) {
         btn.disabled = on;
@@ -227,10 +314,24 @@
       form.addEventListener('submit', async function (e) {
         e.preventDefault();
 
-        const targetUrl  = document.getElementById('target_url').value.trim();
         const contextLabel = document.getElementById('context_label').value;
+        let payload;
 
-        if (!targetUrl) return;
+        if (currentMode === 'url') {
+          const targetUrl = urlInput.value.trim();
+          if (!targetUrl) return;
+          payload = {
+            target_url: targetUrl,
+            context_label: contextLabel
+          };
+        } else {
+          const textContent = textInput.value.trim();
+          if (!textContent) return;
+          payload = {
+            text_content: textContent,
+            context_label: contextLabel
+          };
+        }
 
         setLoading(true);
         status.className = 'status';
@@ -240,10 +341,7 @@
           const res = await fetch('/api/submit-scrape', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              target_url: targetUrl,
-              context_label: contextLabel
-            })
+            body: JSON.stringify(payload)
           });
 
           const data = await res.json();
