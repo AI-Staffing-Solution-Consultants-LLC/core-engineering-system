@@ -2,7 +2,7 @@
  * _worker.js — Cloudflare Pages Advanced Mode
  *
  * Handles:
- *   POST /api/submit-scrape → proxy to AI Gateway
+ *   POST /api/submit-scrape → proxy to AI Gateway (URL or Text mode)
  *   Everything else → static assets
  */
 
@@ -55,15 +55,7 @@ async function handleSubmitScrape(request) {
     );
   }
 
-  const { target_url, context_label } = payload || {};
-
-  if (!target_url || typeof target_url !== 'string') {
-    return jsonResponse(
-      { success: false, error: 'Missing or invalid target_url.' },
-      400,
-      corsHeaders
-    );
-  }
+  const { target_url, text_content, context_label } = payload || {};
 
   if (!context_label || typeof context_label !== 'string') {
     return jsonResponse(
@@ -73,26 +65,67 @@ async function handleSubmitScrape(request) {
     );
   }
 
-  /* Build outbound request to AI Gateway */
-  const gatewayPayload = {
-    model: 'openviking-ingest',
-    messages: [
-      {
-        role: 'system',
-        content: `Ingest URL into RAG pipeline. Context: ${context_label}`,
-      },
-      {
-        role: 'user',
-        content: target_url,
-      },
-    ],
-    metadata: {
-      context_label: context_label,
-      submitted_at: new Date().toISOString(),
-      source: 'openviking-web-ingest-portal',
-    },
-  };
+  let gatewayPayload;
 
+  /* ── URL mode ── */
+  if (target_url && typeof target_url === 'string') {
+    gatewayPayload = {
+      model: 'openviking-ingest',
+      messages: [
+        {
+          role: 'system',
+          content: `Ingest URL into RAG pipeline. Context: ${context_label}`,
+        },
+        {
+          role: 'user',
+          content: target_url,
+        },
+      ],
+      metadata: {
+        ingest_type: 'url',
+        context_label: context_label,
+        submitted_at: new Date().toISOString(),
+        source: 'openviking-web-ingest-portal',
+      },
+    };
+  }
+
+  /* ── Text mode ── */
+  else if (text_content && typeof text_content === 'string') {
+    const markdown = convertToMarkdown(text_content, context_label);
+
+    gatewayPayload = {
+      model: 'openviking-ingest',
+      messages: [
+        {
+          role: 'system',
+          content: `Ingest document into RAG pipeline. Context: ${context_label}. Format: Markdown`,
+        },
+        {
+          role: 'user',
+          content: markdown,
+        },
+      ],
+      metadata: {
+        ingest_type: 'text',
+        context_label: context_label,
+        submitted_at: new Date().toISOString(),
+        source: 'openviking-web-ingest-portal',
+        original_format: 'plain_text',
+        converted_format: 'markdown',
+      },
+    };
+  }
+
+  else {
+    return jsonResponse(
+      { success: false, error: 'Missing or invalid submission. Provide either target_url or text_content.' },
+      400,
+      corsHeaders
+    );
+  }
+
+  /* Build outbound headers */
   const headers = new Headers({
     'Content-Type': 'application/json',
     'X-Agent-ID': 'openviking-web-ingest-portal',
@@ -124,12 +157,14 @@ async function handleSubmitScrape(request) {
       gatewayBody = null;
     }
 
+    const isUrl = target_url ? true : false;
     return jsonResponse(
       {
         success: true,
-        message: `URL accepted for ingestion. Context: ${context_label}`,
+        message: `${isUrl ? 'URL' : 'Text document'} accepted for ingestion. Context: ${context_label}`,
         gateway_status: gatewayRes.status,
         reference: gatewayBody?.id || null,
+        ingest_type: isUrl ? 'url' : 'text',
       },
       200,
       corsHeaders
@@ -158,6 +193,33 @@ async function handleSubmitScrape(request) {
     gatewayRes.status,
     corsHeaders
   );
+}
+
+/**
+ * Convert plain text to Markdown format.
+ * Wraps the content in a structured markdown document with frontmatter.
+ */
+function convertToMarkdown(text, category) {
+  const timestamp = new Date().toISOString();
+  const title = category.replace(/_/g, ' ');
+
+  const escapedText = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  return `---
+title: "${title}"
+category: ${category}
+ingested_at: ${timestamp}
+source: openviking-web-ingest-portal
+format: markdown
+---
+
+# ${title}
+
+${escapedText}
+`;
 }
 
 function jsonResponse(body, status, extraHeaders = {}) {
