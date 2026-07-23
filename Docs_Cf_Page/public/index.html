@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenViking Memory Mesh — Ingest Portal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0e14;
+      --surface: #141820;
+      --border: #1e2530;
+      --accent: #38bdf8;
+      --accent-hover: #7dd3fc;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --error: #ef4444;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .logo {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 1.75rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="url"],
+    select {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="url"]:focus,
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="url"]::placeholder {
+      color: #475569;
+    }
+
+    .field { margin-bottom: 1.1rem; }
+
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      padding-right: 2rem;
+      cursor: pointer;
+    }
+
+    select option {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 0.7rem;
+      margin-top: 0.5rem;
+      background: var(--accent);
+      color: #0b0e14;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      position: relative;
+    }
+
+    .submit-btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .spinner {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid var(--bg);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status {
+      margin-top: 1rem;
+      padding: 0.7rem 0.85rem;
+      border-radius: var(--radius);
+      font-size: 0.82rem;
+      line-height: 1.45;
+      display: none;
+      word-break: break-word;
+    }
+
+    .status.ok {
+      display: block;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--success);
+    }
+
+    .status.err {
+      display: block;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--error);
+    }
+
+    .footer {
+      margin-top: 1.5rem;
+      text-align: center;
+      font-size: 0.72rem;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="logo">OpenViking</div>
+    <h1>Memory Mesh Ingest</h1>
+    <p class="subtitle">Submit a target URL for RAG ingestion into the OpenViking knowledge pipeline.</p>
+
+    <form id="ingest_form" autocomplete="off">
+      <div class="field">
+        <label for="target_url">Target URL</label>
+        <input type="url" id="target_url" name="target_url"
+               placeholder="https://example.com/docs" required>
+      </div>
+
+      <div class="field">
+        <label for="context_label">Context Label</label>
+        <select id="context_label" name="context_label" required>
+          <option value="Barry_Lead_Gen">Barry_Lead_Gen</option>
+          <option value="Track_A_Control">Track_A_Control</option>
+          <option value="Track_B_Actuator">Track_B_Actuator</option>
+          <option value="Inference_Tokenomics">Inference_Tokenomics</option>
+          <option value="General_SOP" selected>General_SOP</option>
+        </select>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submit_btn">
+        <span id="btn_label">Submit to OpenViking Memory Mesh</span>
+        <span class="spinner" id="btn_spinner"></span>
+      </button>
+    </form>
+
+    <div class="status" id="status_box"></div>
+
+    <div class="footer">OpenViking RAG Ingestion Portal &middot; AI Staffing Solutions</div>
+  </div>
+
+  <script>
+    (function () {
+      const form    = document.getElementById('ingest_form');
+      const btn     = document.getElementById('submit_btn');
+      const label   = document.getElementById('btn_label');
+      const spinner = document.getElementById('btn_spinner');
+      const status  = document.getElementById('status_box');
+
+      function setLoading(on) {
+        btn.disabled = on;
+        label.style.display = on ? 'none' : '';
+        spinner.style.display = on ? 'block' : 'none';
+      }
+
+      function showStatus(type, msg) {
+        status.className = 'status ' + type;
+        status.textContent = msg;
+      }
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const targetUrl  = document.getElementById('target_url').value.trim();
+        const contextLabel = document.getElementById('context_label').value;
+
+        if (!targetUrl) return;
+
+        setLoading(true);
+        status.className = 'status';
+        status.textContent = '';
+
+        try {
+          const res = await fetch('/api/submit-scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              target_url: targetUrl,
+              context_label: contextLabel
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            showStatus('ok', '\u2714  ' + (data.message || 'Submission accepted by OpenViking Memory Mesh.'));
+          } else {
+            showStatus('err', '\u2718  ' + (data.error || 'Server returned status ' + res.status));
+          }
+        } catch (err) {
+          showStatus('err', '\u2718  Network error: ' + err.message);
+        } finally {
+          setLoading(false);
+        }
+      });
+    })();
+  </script>
+
+</body>
+</html>
