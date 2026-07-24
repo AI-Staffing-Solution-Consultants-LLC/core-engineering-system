@@ -1,0 +1,17 @@
+{
+  "name": "openviking-ingest-portal",
+  "version": "2.0.0",
+  "description": "OpenViking RAG Ingestion Portal — Cloudflare Worker",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --env dev",
+    "deploy:dev": "wrangler deploy --env dev",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:prod": "wrangler deploy --env production",
+    "tail:dev": "wrangler tail --env dev",
+    "tail:prod": "wrangler tail --env production"
+  },
+  "devDependencies": {
+    "wrangler": "^4.81.1"
+  }
+}

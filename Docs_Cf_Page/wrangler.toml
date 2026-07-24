@@ -1,0 +1,66 @@
+# OpenViking Ingest Portal — Cloudflare Worker
+# Multi-environment: dev / staging / production
+# Deploy: wrangler deploy --env <dev|staging|production>
+
+name = "openviking-ingest"
+main = "src/index.js"
+compatibility_date = "2026-07-23"
+compatibility_flags = ["nodejs_compat"]
+account_id = "197a5689d9c0df2855f017dcbfc59f4a"
+
+# ── Environment: dev ──
+[env.dev]
+name = "openviking-ingest-dev"
+
+[env.dev.vars]
+APP_NAME = "openviking-ingest-portal"
+ENVIRONMENT = "dev"
+LOG_LEVEL = "debug"
+
+[[env.dev.vectorize]]
+binding = "VECTORIZE"
+index_name = "openviking-embeddings"
+
+[env.dev.ai]
+binding = "AI"
+
+# ── Environment: staging ──
+[env.staging]
+name = "openviking-ingest-staging"
+
+[env.staging.vars]
+APP_NAME = "openviking-ingest-portal"
+ENVIRONMENT = "staging"
+LOG_LEVEL = "info"
+
+[[env.staging.vectorize]]
+binding = "VECTORIZE"
+index_name = "openviking-embeddings"
+
+[env.staging.ai]
+binding = "AI"
+
+# ── Environment: production ──
+[env.production]
+name = "openviking-ingest-prod"
+
+[env.production.vars]
+APP_NAME = "openviking-ingest-portal"
+ENVIRONMENT = "production"
+LOG_LEVEL = "warn"
+
+[[env.production.vectorize]]
+binding = "VECTORIZE"
+index_name = "openviking-embeddings"
+
+[env.production.ai]
+binding = "AI"
+
+# ── Limits ──
+[limits]
+cpu_ms = 50
+
+# ── Observability ──
+[observability]
+enabled = true
+head_sampling_rate = 1.0

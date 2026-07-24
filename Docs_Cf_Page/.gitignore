@@ -1,0 +1,9 @@
+# Build artifacts
+.wrangler/
+node_modules/
+dist/
+
+# Secrets (never commit)
+*.key
+*.pem
+.env*
