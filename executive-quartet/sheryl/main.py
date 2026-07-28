@@ -26,6 +26,8 @@ _REPO_ROOT = _EXEC_DIR.parent  # core-engineering-system/
 sys.path.insert(0, str(_EXEC_DIR))
 sys.path.insert(0, str(_REPO_ROOT))
 
+import requests  # noqa: E402
+
 from flask import Flask, Response, jsonify, request  # noqa: E402
 from memory_client import query_memory, store_memory  # noqa: E402
 from src.ledger import LedgerWriter  # noqa: E402
@@ -47,6 +49,15 @@ logger = logging.getLogger("sheryl")
 # Shared ledger writer instance (thread-safe, per src/ledger.py)
 ledger = LedgerWriter(str(LEDGER_PATH))
 _chain_head: str = ""  # tracks the last chain_hash emitted
+
+# Cross-service URLs (container-network hostnames)
+AURA_URL = os.environ.get("AURA_URL", "http://aura-agent:8084")
+TELEGRAM_BRIDGE_URL = os.environ.get(
+    "TELEGRAM_BRIDGE_URL", "http://telegram-bridge:8088"
+)
+
+# In-memory store for dashboard (max 5 entries, oldest-eviction FIFO)
+_last_responses: list[dict] = []
 
 
 def _write_ledger(entry_type: str, data: dict) -> str:
@@ -145,6 +156,56 @@ def build_action_plan(query: str, hypothesis: str) -> list[dict]:
         )
 
     return actions
+
+
+def generate_response(
+    query: str, rag_chunks: list[str], memory_chunks: list[dict]
+) -> str:
+    """Synthesise a response from RAG context and memory, or fall back to
+    a generic acknowledgment."""
+    q = query.lower()
+
+    keyword_responses = {
+        "latency": (
+            "High latency detected — check resource saturation and network "
+            "conditions. Reviewing historical runbooks for similar incidents."
+        ),
+        "crash": (
+            "Crash incident detected. Recommend inspecting pod logs and "
+            "memory usage. Investigating previous crash patterns."
+        ),
+        "error": (
+            "Error state identified. I'll analyse recent logs and system "
+            "events to isolate the root cause."
+        ),
+        "deploy": (
+            "Deploy request received. Verify container image and "
+            "configuration drift, then proceed with rollout."
+        ),
+        "cpu": (
+            "CPU saturation alert. Check for noisy neighbours or "
+            "runaway processes on the affected node."
+        ),
+        "memory": (
+            "Memory pressure detected. Possible memory leak or "
+            "under-provisioning — checking resource allocation."
+        ),
+    }
+    for kw, response in keyword_responses.items():
+        if kw in q:
+            return response
+
+    if rag_chunks:
+        snippet = rag_chunks[0][:120].strip().replace("\n", " ")
+        return f"I found relevant context: {snippet}... Would you like me to investigate further?"
+
+    if memory_chunks:
+        return (
+            "I have prior context related to this query. Let me review and "
+            "provide a detailed assessment."
+        )
+
+    return "Acknowledged. I'll analyse this request and respond with an action plan shortly."
 
 
 # ---------------------------------------------------------------------------
@@ -334,6 +395,119 @@ def ledger_route():
     entries = entries[:limit]
     parsed = [json.loads(e) for e in reversed(entries)]
     return jsonify({"entries": parsed, "count": len(parsed)})
+
+
+@app.route("/ingest", methods=["POST"])
+def ingest():
+    """Accept a Telegram message, consult RAG + MemoryPlugin, generate a
+    response, run it through Aura consistency check, and deliver via
+    telegram-bridge.
+    """
+    body = request.get_json(silent=True) or {}
+    chat_id = body.get("chat_id")
+    text = (body.get("text") or body.get("caption") or "").strip()
+    from_id = body.get("from_id")
+    from_name = body.get("from_name", "unknown")
+
+    if chat_id is None or not text:
+        return jsonify({"error": "Missing required fields: chat_id, text"}), 400
+
+    plan_id = str(uuid.uuid4())
+    reasoning_ref = _write_ledger(
+        "ingest_start",
+        {"plan_id": plan_id, "chat_id": chat_id, "from_id": from_id, "query": text},
+    )
+    logger.info("Sheryl ingest %s: '%s' from chat=%s", plan_id, text, chat_id)
+
+    # 1 ─ Consult RAG corpus
+    rag_corpus = load_rag_context()
+    rag_chunks = search_rag(rag_corpus, text, top_k=3)
+
+    # 2 ─ Consult MemoryPlugin
+    try:
+        mem_result = query_memory(entity="sheryl", context="plan_context", query=text)
+        memory_chunks = mem_result.get("data", [])
+    except Exception as exc:
+        logger.warning("MemoryPlugin query failed (non-fatal): %s", exc)
+        memory_chunks = []
+
+    # 3 ─ Generate response
+    response_text = generate_response(text, rag_chunks, memory_chunks)
+
+    # 4 ─ Aura consistency check
+    aura_checked = False
+    ambiguous = False
+    try:
+        aura_resp = requests.post(
+            f"{AURA_URL}/consistency-check",
+            json={"response_text": response_text, "context": {"chat_id": chat_id}},
+            timeout=5,
+        )
+        if aura_resp.ok:
+            aura_data = aura_resp.json()
+            ambiguous = aura_data.get("ambiguous", False)
+            aura_checked = True
+            if ambiguous:
+                response_text += " \N{LARGE RED CIRCLE}\N{HEAVY CHECK MARK}"
+    except requests.RequestException as exc:
+        logger.warning("Aura unreachable for consistency check: %s", exc)
+
+    # 5 ─ Deliver via telegram-bridge
+    try:
+        requests.post(
+            f"{TELEGRAM_BRIDGE_URL}/send",
+            json={"chat_id": chat_id, "text": response_text},
+            timeout=5,
+        )
+    except requests.RequestException as exc:
+        logger.warning("telegram-bridge /send failed: %s", exc)
+
+    # 6 ─ Ledger entry
+    _write_ledger(
+        "ingest_complete",
+        {
+            "plan_id": plan_id,
+            "chat_id": chat_id,
+            "aura_checked": aura_checked,
+            "ambiguous": ambiguous,
+            "response_preview": response_text[:200],
+            "reasoning_log_ref": reasoning_ref,
+        },
+    )
+
+    # 7 ─ Record for dashboard
+    _last_responses.append(
+        {
+            "agent": "sheryl",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "query": text,
+            "response": response_text,
+            "ambiguous": ambiguous,
+        }
+    )
+    if len(_last_responses) > 5:
+        _last_responses.pop(0)
+
+    logger.info(
+        "Sheryl ingest %s complete — aura_checked=%s ambiguous=%s",
+        plan_id,
+        aura_checked,
+        ambiguous,
+    )
+    return jsonify(
+        {
+            "response": response_text,
+            "aura_checked": aura_checked,
+            "ambiguous": ambiguous,
+            "plan_id": plan_id,
+        }
+    )
+
+
+@app.route("/dashboard/last-responses", methods=["GET"])
+def dashboard_last_responses():
+    """Return the last 5 agent responses stored in memory."""
+    return jsonify(list(_last_responses))
 
 
 # ---------------------------------------------------------------------------

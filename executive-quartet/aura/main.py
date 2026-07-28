@@ -188,6 +188,109 @@ def ledger():
     return jsonify({"entries": parsed, "count": len(parsed)})
 
 
+@app.route("/consistency-check", methods=["POST"])
+def consistency_check():
+    """Analyse a response for ambiguity indicators (Aura Consistency Protocol).
+
+    Request:  {"response_text": "...", "context": {...}}
+    Response: {"ambiguous": bool, "reason": "..."}
+    """
+    body = request.get_json(silent=True) or {}
+    response_text = body.get("response_text", "").strip().lower()
+    context = body.get("context", {})
+
+    if not response_text:
+        return jsonify({"error": "Missing required field: response_text"}), 400
+
+    reasons: list[str] = []
+
+    # 1 ─ Vague language keywords
+    vague_words = [
+        "maybe",
+        "possibly",
+        "could",
+        "might",
+        "perhaps",
+        "think about",
+        "consider",
+        "not sure",
+        "unclear",
+    ]
+    found_vague = [w for w in vague_words if w in response_text]
+    if found_vague:
+        reasons.append(f"Vague language detected: {', '.join(found_vague)}")
+
+    # 2 ─ Conflicting instructions ("but" / "however" may contradict prior statements)
+    if "but " in response_text or "however" in response_text:
+        # Split and look for a recommendation followed by a contradiction
+        parts = response_text.replace("however", " but ").split(" but ")
+        if len(parts) >= 2 and len(parts[0].strip()) > 10:
+            reasons.append(
+                "Conflicting instructions: response contains 'but'/'however' "
+                "that may contradict prior statements"
+            )
+
+    # 3 ─ Missing critical info
+    if len(response_text) < 20:
+        reasons.append(
+            "Response too short (under 20 characters); likely missing details"
+        )
+
+    # 3b ─ Question-like responses (agent responds with another question)
+    question_indicators = [
+        "what do you",
+        "how should",
+        "can you",
+        "could you",
+        "would you",
+        "do you think",
+        "is it",
+    ]
+    for qi in question_indicators:
+        if qi in response_text:
+            reasons.append(
+                "Question-like response: agent returned a query instead of an answer"
+            )
+            break
+
+    # 3c ─ No action items (informational but no directive)
+    action_verbs = [
+        "run",
+        "execute",
+        "deploy",
+        "check",
+        "restart",
+        "apply",
+        "configure",
+        "set",
+        "patch",
+        "update",
+        "rollback",
+    ]
+    has_action = any(verb in response_text for verb in action_verbs)
+    if not has_action and len(response_text) >= 20:
+        reasons.append("No actionable directive found in response")
+
+    # Determine overall ambiguity (any reason = ambiguous)
+    ambiguous = len(reasons) > 0
+    reason_text = (
+        "; ".join(reasons) if ambiguous else "Response is clear and actionable"
+    )
+
+    write_ledger_entry(
+        "consistency_check",
+        {
+            "ambiguous": ambiguous,
+            "reason": reason_text,
+            "response_length": len(response_text),
+            "context_keys": list(context.keys()) if isinstance(context, dict) else [],
+        },
+    )
+
+    logger.info("Consistency check: ambiguous=%s reason=%s", ambiguous, reason_text)
+    return jsonify({"ambiguous": ambiguous, "reason": reason_text})
+
+
 # ── Startup ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     # Restore ledger chain hash from last entry on disk

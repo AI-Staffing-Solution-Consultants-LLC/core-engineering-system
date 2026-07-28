@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy shared libraries first (they live above the sheryl directory)
 COPY src/ledger.py src/ledger.py
-COPY executive-quartet/memory_client.py executive-quartet/memory_client.py
+COPY executive-quartet/memory_client.py .
 
 # Copy the service module
 COPY executive-quartet/sheryl/main.py main.py

@@ -21,7 +21,7 @@ from flask import Flask, jsonify, request
 # Configuration — token from env ONLY, never hardcoded
 # ---------------------------------------------------------------------------
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-SHERYL_URL = os.environ.get("SHERYL_URL", "http://sheryl:8082/ingest")
+SHERYL_URL = os.environ.get("SHERYL_URL", "http://sheryl:8083/ingest")
 TELEGRAM_API_BASE = "https://api.telegram.org"
 
 # ---------------------------------------------------------------------------
