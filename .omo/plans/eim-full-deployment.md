@@ -312,7 +312,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — `ls openviking-memory/` shows ≥ 4 files; `python -c "import json; json.load(open('openviking-memory/vector-store-config.json'))"` exits 0. failure — Gemini API key missing: steward module logs warning, returns "unavailable" status without crashing. Evidence: `.omo/evidence/eim-full-deployment/task-11-openviking.txt`
   Commit: YES | `feat(openviking): vector memory plane — store config, Gemini Knowledge Steward, ingest pipeline`
 
-- [ ] 12. **Register Telegram webhook + live end-to-end test**
+- [~] 12. **Register Telegram webhook + live end-to-end test**  ← BLOCKED: gcloud auth expired (needs `gcloud auth login`)
   What to do:
   1. After deploy-gcr.sh runs (Task 13), get the telegram-bridge Cloud Run URL: `gcloud run services describe telegram-bridge --region=us-central1 --project=aissc-core-engine-self-dep --format='value(status.url)'`
   2. Register webhook with Telegram Bot API: `curl -F "url=https://<TELEGRAM_BRIDGE_URL>/webhook" -F "secret_token=<randomly_generated_32_char_secret>" "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook"`
@@ -327,7 +327,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — full E2E: send "deploy the marketing module" via Telegram → message routes through telegram-bridge → Sheryl `/ingest` → Aura checks consistency → response back via Telegram with or without `🔴✔️`. failure — webhook not set: `getWebhookInfo` shows empty URL (manual intervention needed before proceeding). Evidence: `.omo/evidence/eim-full-deployment/task-12-telegram-webhook.txt`
   Commit: N/A (runtime configuration, no code change) | Record webhook URL + verification in evidence
 
-- [ ] 13. **Execute `deploy-gcr.sh` — full Cloud Run mesh deploy**
+- [~] 13. **Execute `deploy-gcr.sh` — full Cloud Run mesh deploy**  ← BLOCKED: gcloud auth expired (needs `gcloud auth login`)
   What to do:
   1. Verify all preconditions:
      - `gcloud auth list` shows active account with `aissc-core-engine-self-dep` access
@@ -353,7 +353,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — `curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" <TRACK_A_URL>/healthz` returns 200 for each internal service; `curl <TELEGRAM_BRIDGE_URL>/healthz` returns 200 with no auth. failure — deploy failed mid-way: script output saved to `deploy-output.log`, identify which service failed, fix, re-run only that service. Evidence: `.omo/evidence/eim-full-deployment/task-13-deploy-output.log`
   Commit: N/A (deployment execution) | Commit `deploy-output.log` as deployment evidence
 
-- [ ] 14. **Endpoint verification log — health-check all 8 services**
+- [~] 14. **Endpoint verification log — health-check all 8 services**  ← BLOCKED: depends on Task 13 (deploy)
   What to do:
   1. For each deployed service, run health check and record result:
      - Track A: `curl -si -H "Authorization: Bearer $(gcloud auth print-identity-token)" <URL>/healthz`
