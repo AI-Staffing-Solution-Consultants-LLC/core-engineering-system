@@ -229,7 +229,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — browser console: `await faceTracker.detectOnce()` returns results array with faceLandmarks. failure — no webcam: tracker enters "no camera" state with user-visible message, does not crash. Evidence: screenshot of face mesh overlay + `.omo/evidence/eim-full-deployment/task-6-mediapipe.txt`
   Commit: YES | `feat(eim): MediaPipe FaceLandmarker WASM — client-side emotion/blendshape tracking`
 
-- [ ] 7. **Integrate Tavus WebRTC CVI — 2-way AI avatar video window**
+- [x] 7. **Integrate Tavus WebRTC CVI — 2-way AI avatar video window**
   What to do:
   1. Read Tavus API key from `/home/olly/Documents/Keys2/Tavus/Tavus api key.txt`.
   2. Create Cloudflare Pages Function `cloudflare/pages/eim/functions/api/tavus/conversation.js` (or equivalent route handler): accepts POST with `{persona_id, replica_id}`, calls Tavus REST API `POST https://tavusapi.com/v2/conversations` with `x-api-key` header, returns `{conversation_url, conversation_id}`.

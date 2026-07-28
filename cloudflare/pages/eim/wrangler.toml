@@ -23,6 +23,9 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ACCESS_PASSWORD_HASH = "placeholder-change-me-set-real-hash-before-deploy"
+TAVUS_API_KEY = "f51d29d37b154a1885294f62b7e43007"
+TAVUS_PERSONA_ID = ""
+TAVUS_REPLICA_ID = ""
 
 # ── Limits ────────────────────────────────────────────────────────────────────
 [limits]

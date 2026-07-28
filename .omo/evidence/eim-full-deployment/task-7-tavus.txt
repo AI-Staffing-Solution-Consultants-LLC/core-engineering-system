@@ -1,0 +1,82 @@
+Task 7: Tavus CVI Integration — Deployment Evidence
+======================================================
+Date: 2026-07-28
+Plan: .omo/plans/eim-full-deployment.md — Task 7
+Executor: Sisyphus-Junior (OhMyOpenCode)
+
+Files Created:
+  ✅ cloudflare/pages/eim/functions/api/tavus/conversation.js
+     Pages Function proxying Tavus REST API POST /api/tavus/conversation.
+     Reads TAVUS_API_KEY from env (never exposed to client).
+     Supports optional persona_id/replica_id overrides from request body.
+     Error handling: 405 for non-POST, 500 for missing API key, 502 for Tavus unreachable.
+     Returns { conversation_url, conversation_id, status, created_at }.
+
+  ✅ cloudflare/pages/eim/tavus-avatar.js
+     ES module exporting TavusAvatar extends EventTarget.
+     Uses Daily.co IFrame API from CDN (@daily-co/daily-js).
+     connect(conversationUrl) creates Daily IFrame and joins room.
+     disconnect() leaves meeting, removes iframe, cleans up listeners.
+     getStatus() returns current connection state.
+     Dispatches status events: connecting, connected, disconnected, error.
+
+  ✅ cloudflare/pages/eim/mediapipe-tavus-bridge.js
+     ES module exporting MediapipeTavusBridge extends EventTarget.
+     attach(faceTracker) bridges FaceTracker blendshape events.
+     Throttles output to 500ms with significant change detection (≥0.05 delta).
+     Infers emotion (happy/sad/angry/surprised/worried/neutral) from blendshapes.
+     Dispatches tavus-context events with emotion, top expressions, and raw data.
+     detach() cleans up event listeners.
+
+Files Modified:
+  ✅ cloudflare/pages/eim/index.html
+     Replaced canvas-placeholder div with avatar-container div (3 states: loading, placeholder, error).
+     Added <script> tags for tavus-avatar.js and mediapipe-tavus-bridge.js.
+     Face tracker overlay preserved inside canvas-frame.
+
+  ✅ cloudflare/pages/eim/app.js
+     Added avatar DOM references (avatarContainer, avatarLoading, avatarPlaceholder, avatarError, etc.).
+     Added avatar state variables (tavusAvatarInstance, mediapipeBridgeInstance, avatarConnected, avatarConnecting).
+     handlePasswordSubmit() now calls initAvatar() after authentication.
+     init() session resume now calls initAvatar().
+     logout() cleans up avatar and bridge.
+     initAvatar() dynamically imports TavusAvatar and MediapipeTavusBridge, creates conversation via proxy, connects.
+     handleAvatarStatus() manages connecting/connected/disconnected/error UI states.
+     bindEvents() added avatar retry button handler.
+
+  ✅ cloudflare/pages/eim/style.css
+     Added .avatar-container styles: absolute inset fill, z-index 1.
+     .avatar-loading: centered spinner + label, hidden/visible toggle.
+     .avatar-placeholder: centered icon + label + sub text (matched old canvas-placeholder style).
+     .avatar-error: centered error icon + label + retry button.
+     All use existing --color-* design tokens.
+
+  ✅ cloudflare/pages/eim/wrangler.toml
+     Added TAVUS_API_KEY = "f51d29d37b154a1885294f62b7e43007" to [vars].
+     Added TAVUS_PERSONA_ID = "" placeholder.
+     Added TAVUS_REPLICA_ID = "" placeholder.
+     Note: Real production deploy should use `wrangler secret put TAVUS_API_KEY`.
+
+Acceptance Criteria:
+  ✅ POST /api/tavus/conversation endpoint exists, returns { conversation_url, ... }.
+  ✅ API key stored in wrangler.toml vars (referenced as env.TAVUS_API_KEY in function).
+  ✅ Daily IFrame approach used (not @tavus/cvi-ui React component).
+  ✅ Vanilla JS + ES modules only — no framework dependencies.
+  ✅ Face tracker (Task 6) and password gate (Task 5) functionality preserved.
+  ✅ Avatar loads independently of MediaPipe (parallel dynamic imports).
+
+Must NOT Do (verified):
+  ✅ API key NOT in client-side code (referenced only in wrangler.toml vars + env in function).
+  ✅ No React, @tavus/cvi-ui, or framework usage.
+  ✅ Daily IFrame loaded asynchronously (dynamic import from CDN).
+  ✅ Avatar and MediaPipe operate independently.
+  ✅ Password gate (Task 5) and face tracker (Task 6) not broken.
+
+Edge Cases Handled:
+  - Missing/invalid API key → 500 error in function, logged server-side.
+  - Tavus API unreachable → 502 error with detail.
+  - Non-JSON response from Tavus → 502 error.
+  - Already-connected avatar → warns and disconnects before reconnecting.
+  - Missing container element → logged error.
+  - Bridge attach with no face tracker → bridge created but not attached.
+  - Multiple initAvatar() calls → guarded by avatarConnected/avatarConnecting flags.

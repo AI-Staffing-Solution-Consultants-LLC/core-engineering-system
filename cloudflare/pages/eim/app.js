@@ -1,7 +1,8 @@
 /**
  * EIM — Executive Interface Module
  * Application logic for password gate, viewport switching,
- * tab system, and responsive sidebar navigation.
+ * tab system, responsive sidebar navigation, face tracking,
+ * Tavus avatar integration, and MediaPipe-Tavus bridging.
  *
  * No framework dependencies. Vanilla ES module.
  */
@@ -44,6 +45,14 @@ const dom = {
   faceTrackerRetryBtn: document.getElementById('face-tracker-retry-btn'),
   faceBadge: document.getElementById('canvas-face-badge'),
   canvasPlaceholder: document.querySelector('.canvas-placeholder'),
+
+  // Avatar
+  avatarContainer: document.getElementById('avatar-container'),
+  avatarLoading: document.getElementById('avatar-loading'),
+  avatarPlaceholder: document.getElementById('avatar-placeholder'),
+  avatarError: document.getElementById('avatar-error'),
+  avatarErrorLabel: document.getElementById('avatar-error-label'),
+  avatarRetryBtn: document.getElementById('avatar-retry-btn'),
 };
 
 /* ── State ──────────────────────────────────────────────────────────────── */
@@ -55,6 +64,12 @@ let faceTrackerInitialized = false;
 
 // Expose blendshape data for downstream consumers (Tasks 7, 8)
 let latestBlendshapes = null;
+
+// Avatar state
+let tavusAvatarInstance = null;
+let mediapipeBridgeInstance = null;
+let avatarConnected = false;
+let avatarConnecting = false;
 
 /* ── Utilities ──────────────────────────────────────────────────────────── */
 
@@ -125,6 +140,7 @@ async function handlePasswordSubmit() {
     localStorage.setItem(SESSION_KEY, sessionId);
     hidePasswordGate();
     initFaceTracker();
+    initAvatar();
   } else {
     showPasswordError();
   }
@@ -174,6 +190,19 @@ function logout() {
     faceTrackerInitialized = false;
     latestBlendshapes = null;
     handleFaceTrackerStatus('idle');
+  }
+
+  if (mediapipeBridgeInstance) {
+    mediapipeBridgeInstance.detach();
+    mediapipeBridgeInstance = null;
+  }
+
+  if (tavusAvatarInstance) {
+    tavusAvatarInstance.disconnect();
+    tavusAvatarInstance = null;
+    avatarConnected = false;
+    avatarConnecting = false;
+    handleAvatarStatus('disconnected');
   }
 
   dom.passwordGate.classList.remove('hidden');
@@ -352,6 +381,13 @@ function bindEvents() {
     });
   }
 
+  // Avatar retry button
+  if (dom.avatarRetryBtn) {
+    dom.avatarRetryBtn.addEventListener('click', () => {
+      initAvatar();
+    });
+  }
+
   // Logout
   if (dom.logoutBtn) {
     dom.logoutBtn.addEventListener('click', (e) => {
@@ -462,6 +498,122 @@ export function getLatestBlendshapes() {
   return latestBlendshapes;
 }
 
+/* ── Avatar Integration ─────────────────────────────────────────────────── */
+
+/**
+ * Initialize the Tavus avatar and MediaPipe bridge.
+ * Called after successful authentication and independent of face tracker.
+ */
+async function initAvatar() {
+  if (avatarConnected || avatarConnecting) return;
+  avatarConnecting = true;
+
+  handleAvatarStatus('connecting');
+
+  try {
+    // Import modules dynamically
+    const [{ default: TavusAvatar }, { default: MediapipeTavusBridge }] = await Promise.all([
+      import('./tavus-avatar.js'),
+      import('./mediapipe-tavus-bridge.js'),
+    ]);
+
+    // Create the bridge if face tracker is active
+    if (faceTrackerInstance) {
+      if (!mediapipeBridgeInstance) {
+        mediapipeBridgeInstance = new MediapipeTavusBridge();
+        mediapipeBridgeInstance.addEventListener('tavus-context', (e) => {
+          console.log('[EIM] Tavus context updated:', e.detail.emotion);
+        });
+      }
+      mediapipeBridgeInstance.attach(faceTrackerInstance);
+    }
+
+    // Fetch conversation URL from the server-side proxy
+    const response = await fetch('/api/tavus/conversation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || `Proxy returned ${response.status}`);
+    }
+
+    const { conversation_url } = await response.json();
+    if (!conversation_url) {
+      throw new Error('No conversation_url returned from Tavus proxy');
+    }
+
+    // Create and connect the avatar
+    tavusAvatarInstance = new TavusAvatar({ containerId: 'avatar-container' });
+
+    tavusAvatarInstance.addEventListener('status', (e) => {
+      const { status, message } = e.detail;
+      handleAvatarStatus(status, message);
+    });
+
+    await tavusAvatarInstance.connect(conversation_url);
+  } catch (err) {
+    console.error('[EIM] Avatar init failed:', err);
+    handleAvatarStatus('error', err.message || 'Avatar connection failed');
+    avatarConnecting = false;
+  }
+}
+
+/**
+ * Handle avatar status changes — update UI states.
+ * @param {string} status — "connecting" | "connected" | "disconnected" | "error"
+ * @param {string} [message] — error message
+ */
+function handleAvatarStatus(status, message) {
+  const avatarPlaceholder = dom.avatarPlaceholder;
+  const avatarLoading = dom.avatarLoading;
+  const avatarError = dom.avatarError;
+
+  switch (status) {
+    case 'connecting':
+      avatarConnected = false;
+      avatarConnecting = true;
+      if (avatarPlaceholder) avatarPlaceholder.classList.add('hidden');
+      if (avatarLoading) avatarLoading.classList.remove('hidden');
+      if (avatarError) avatarError.classList.add('hidden');
+      break;
+
+    case 'connected':
+      avatarConnected = true;
+      avatarConnecting = false;
+      if (avatarPlaceholder) avatarPlaceholder.classList.add('hidden');
+      if (avatarLoading) avatarLoading.classList.add('hidden');
+      if (avatarError) avatarError.classList.add('hidden');
+      if (dom.faceBadge) {
+        const badgeLabel = dom.faceBadge.querySelector('span:last-child');
+        if (badgeLabel) badgeLabel.textContent = 'Avatar Active';
+        dom.faceBadge.classList.add('visible');
+      }
+      break;
+
+    case 'disconnected':
+      avatarConnected = false;
+      avatarConnecting = false;
+      if (avatarPlaceholder) avatarPlaceholder.classList.remove('hidden');
+      if (avatarLoading) avatarLoading.classList.add('hidden');
+      if (avatarError) avatarError.classList.add('hidden');
+      break;
+
+    case 'error':
+      avatarConnected = false;
+      avatarConnecting = false;
+      if (avatarPlaceholder) avatarPlaceholder.classList.add('hidden');
+      if (avatarLoading) avatarLoading.classList.add('hidden');
+      if (avatarError) avatarError.classList.remove('hidden');
+      if (dom.avatarErrorLabel) {
+        dom.avatarErrorLabel.textContent = message || 'Avatar connection failed';
+      }
+      break;
+  }
+}
+
 /* ── Initialization ─────────────────────────────────────────────────────── */
 
 function init() {
@@ -474,6 +626,7 @@ function init() {
     // Dashboard is already visible; restore sidebar state
     restoreSidebarState();
     initFaceTracker();
+    initAvatar();
   } else {
     // Show password gate, focus input
     dom.passwordInput.focus();

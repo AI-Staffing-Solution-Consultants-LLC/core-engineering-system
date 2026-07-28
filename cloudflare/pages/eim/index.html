@@ -141,15 +141,34 @@
             </div>
           </div>
           <div class="canvas-frame">
-            <div class="canvas-placeholder">
-              <div class="canvas-placeholder-icon">
-                <!-- Monitor SVG -->
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-                </svg>
+            <!-- Avatar Container (Tavus Daily IFrame) -->
+            <div class="avatar-container" id="avatar-container">
+              <!-- Avatar connecting spinner (shown while Daily IFrame loads) -->
+              <div class="avatar-loading hidden" id="avatar-loading" aria-hidden="true">
+                <div class="avatar-loading-spinner" aria-hidden="true"></div>
+                <span class="avatar-loading-label">Avatar service connecting…</span>
               </div>
-              <span class="canvas-placeholder-label">Avatar Interface</span>
-              <span class="canvas-placeholder-sub">Real-time executive avatar feed will render here. Connect a WebRTC endpoint to activate.</span>
+              <!-- Avatar placeholder (shown when no avatar is connected) -->
+              <div class="avatar-placeholder" id="avatar-placeholder">
+                <div class="avatar-placeholder-icon" aria-hidden="true">
+                  <!-- Monitor SVG -->
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                  </svg>
+                </div>
+                <span class="avatar-placeholder-label">Avatar Interface</span>
+                <span class="avatar-placeholder-sub">Real-time executive avatar feed will render here. Connect a WebRTC endpoint to activate.</span>
+              </div>
+              <!-- Avatar error state (shown when connection fails) -->
+              <div class="avatar-error hidden" id="avatar-error" role="alert" aria-hidden="true">
+                <div class="avatar-error-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                  </svg>
+                </div>
+                <span class="avatar-error-label" id="avatar-error-label">Avatar connection failed</span>
+                <button class="avatar-retry-btn" id="avatar-retry-btn" type="button">Retry</button>
+              </div>
             </div>
 
             <!-- Face Tracker Overlay -->
@@ -415,7 +434,9 @@
   </div>
 
   <!-- ═══ Application Logic ════════════════════════════════════════════════════ -->
-  <script type="module" src="app.js"></script>
+  <script type="module" src="tavus-avatar.js"></script>
+  <script type="module" src="mediapipe-tavus-bridge.js"></script>
   <script type="module" src="mediapipe-face-tracker.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1245,6 +1245,144 @@ a {
   outline-offset: 2px;
 }
 
+/* ── Avatar Container ────────────────────────────────────────────────────── */
+
+.avatar-container {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+/* Avatar loading spinner */
+.avatar-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  z-index: 2;
+  background: var(--color-bg);
+}
+
+.avatar-loading.hidden {
+  display: none;
+}
+
+.avatar-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--color-border-light);
+  border-top-color: var(--color-accent);
+  border-radius: var(--radius-full);
+  animation: spinnerRotate 0.8s linear infinite;
+}
+
+.avatar-loading-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+/* Avatar placeholder (when no avatar connected) */
+.avatar-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  z-index: 1;
+}
+
+.avatar-placeholder.hidden {
+  display: none;
+}
+
+.avatar-placeholder-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--color-surface), var(--color-surface-active));
+  border: 1px solid var(--color-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xl);
+  color: var(--color-text-muted);
+}
+
+.avatar-placeholder-label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.avatar-placeholder-sub {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  max-width: 280px;
+  line-height: var(--leading-relaxed);
+}
+
+/* Avatar error state */
+.avatar-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  z-index: 2;
+  background: var(--color-bg);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.avatar-error.hidden {
+  display: none;
+}
+
+.avatar-error-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--color-error);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-error-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.avatar-retry-btn {
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
+}
+
+.avatar-retry-btn:hover {
+  color: var(--color-accent-strong);
+}
+
 /* ── Reduced Motion ─────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
