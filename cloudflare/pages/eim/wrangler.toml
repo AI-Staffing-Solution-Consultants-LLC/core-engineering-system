@@ -1,0 +1,34 @@
+# EIM (Executive Interface Module) — Pages Project wrangler.toml
+# Deploys the executive dashboard at cem.ai-staffing-solutions-consultants.online
+# Standalone Pages project distinct from the Sheryl dashboard.
+#
+# Deploy gate: wrangler pages deploy is [HUMAN-APPROVAL-REQUIRED].
+# Do NOT deploy without explicit approval.
+#
+# Project: aissc-core-engine-self-dep
+# Domain: cem.ai-staffing-solutions-consultants.online
+
+# ── Project identity ──────────────────────────────────────────────────────────
+name = "eim-executive-interface"
+pages_build_output_dir = "."
+compatibility_date = "2026-07-28"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Environment variables ─────────────────────────────────────────────────────
+# ACCESS_PASSWORD_HASH — SHA-256 hex hash of the access password.
+# Set via: wrangler secret put ACCESS_PASSWORD_HASH
+# Generate hash: echo -n "your-password" | sha256sum
+#
+# CLIENT_SALT — optional per-deploy salt for client-side pre-hash (not required).
+
+[vars]
+ACCESS_PASSWORD_HASH = "placeholder-change-me-set-real-hash-before-deploy"
+
+# ── Limits ────────────────────────────────────────────────────────────────────
+[limits]
+cpu_ms = 50
+
+# ── Observability ─────────────────────────────────────────────────────────────
+[observability]
+enabled = true
+head_sampling_rate = 1.0

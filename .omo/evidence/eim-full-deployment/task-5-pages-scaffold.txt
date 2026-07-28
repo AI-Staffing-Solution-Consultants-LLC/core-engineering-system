@@ -1,0 +1,44 @@
+# Task 5 — EIM Pages Scaffold — Deployment Evidence
+# Generated: 2026-07-28T00:00:00Z
+# Session: EIM Pages scaffold creation
+
+## Files Created
+| File | Lines | Purpose |
+|------|-------|---------|
+| cloudflare/pages/eim/index.html | 402 | Main dashboard layout with password gate, sidebar nav, canvas area, tabbed management frame |
+| cloudflare/pages/eim/style.css | 1109 | Complete EIM design system — dark slate + cyan accent theme, responsive breakpoints at 768px/480px, CSS custom properties for all tokens |
+| cloudflare/pages/eim/app.js | 361 | Application logic — password auth flow (server-side SHA-256), viewport switching, tab system, responsive sidebar with mobile overlay |
+| cloudflare/pages/eim/functions/api/auth.js | 178 | Pages Function — POST /api/auth with SHA-256 comparison against ACCESS_PASSWORD_HASH env var, rate-limited to 5 attempts/min/IP |
+| cloudflare/pages/eim/wrangler.toml | 33 | Pages project config — name "eim-executive-interface", domain cem.ai-staffing-solutions-consultants.online, compatibility_date 2026-07-28 |
+
+## Acceptance Criteria Verification
+- [x] Directory created: /home/olly/core-engineering-system/cloudflare/pages/eim/
+- [x] index.html — left sidebar nav (5 items), upper canvas placeholder with pulsing border animation, lower management frame with 4 tabs
+- [x] style.css — dark theme design system with CSS custom properties, distinct from Sheryl gold (slate+cyan: --color-accent: #38bdf8), no frameworks
+- [x] app.js — password gate with server-side auth (POST /api/auth), SHA-256 verification, session storage, viewport switching, tab transitions, responsive mobile menu
+- [x] functions/api/auth.js — POST handler, SHA-256 comparison, rate limiting (5/min/IP), never returns hash
+- [x] wrangler.toml — separate Pages project, ACCESS_PASSWORD_HASH placeholder
+
+## Design Decisions
+- Palette: Deep slate backgrounds (#080b12–#141924) with cool cyan accent (#38bdf8) — distinct EIM identity
+- Tokens: Follows existing `cloudflare/src/style.css` pattern (same structure, different palette)
+- No hardcoded hex colors in HTML or app code; all colors reference CSS custom properties
+- `#fff` only used in CSS mask gradients (browser rendering requirement)
+- No emojis — all icons are inline SVGs
+- No frameworks — vanilla HTML/CSS/JS
+- Responsive: mobile hamburger menu with slide-in sidebar + overlay; tabs stack vertically at 480px
+- GPU-composited animations only: transform, opacity transitions, no layout-property animation
+- Password NEVER stored or echoed — client sends raw password to server, server hashes and compares, returns boolean only
+
+## Deployment Notes
+- ACCESS_PASSWORD_HASH must be set via: wrangler secret put ACCESS_PASSWORD_HASH
+- Generate hash: echo -n "your-password" | sha256sum
+- Deploy gate: [HUMAN-APPROVAL-REQUIRED] before `wrangler pages deploy`
+- Local dev: `cd cloudflare/pages/eim && npx wrangler pages dev . --port 8790`
+
+## Verification
+- All 5 files present: index.html, app.js, style.css, functions/api/auth.js, wrangler.toml
+- No hardcoded passwords or hash strings in source files
+- No emojis in source files
+- CSS 1109 lines, complete design system
+- Total: 2083 lines across all files

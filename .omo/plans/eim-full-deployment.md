@@ -198,7 +198,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — end-to-end: POST to telegram-bridge `/webhook` with a test message → Sheryl `/ingest` receives → Aura `/consistency-check` returns ambiguity verdict → if ambiguous, `🔴✔️` appended. failure — Aura unavailable: Sheryl `/ingest` still returns 200 (graceful degradation, no crash). Evidence: `.omo/evidence/eim-full-deployment/task-4-aura-consistency.txt`
   Commit: YES | `feat(quartet): Aura Consistency Protocol — Sheryl output monitored for ambiguity with 🔴✔️ flag`
 
-- [ ] 5. **Cloudflare Pages scaffold — EIM Web UI with password gate**
+- [x] 5. **Cloudflare Pages scaffold — EIM Web UI with password gate**
   What to do:
   1. Read design concepts from `/home/olly/Documents/Claw Components/Concepts/PC Interface` for visual direction.
   2. Create Cloudflare Pages project structure under `cloudflare/pages/eim/` (or extend existing `cloudflare/src/`):

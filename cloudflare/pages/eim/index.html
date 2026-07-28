@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="EIM — Executive Interface Module">
+  <meta name="color-scheme" content="dark">
+
+  <title>EIM · Executive Interface Module</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ═══ Password Gate Overlay ═══════════════════════════════════════════════ -->
+  <div class="password-gate" id="password-gate" role="dialog" aria-modal="true" aria-label="Authentication required">
+    <div class="password-gate-card" id="password-gate-card">
+      <div class="password-gate-icon" aria-hidden="true">
+        <!-- Shield SVG icon -->
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <h1 class="password-gate-title">Executive Interface Module</h1>
+      <p class="password-gate-subtitle">Enter access credentials to continue</p>
+      <div class="password-gate-input-group">
+        <input
+          type="password"
+          class="password-gate-input"
+          id="password-input"
+          placeholder="Access password"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button class="password-gate-btn" id="password-submit" type="button">Authenticate</button>
+      </div>
+      <div class="password-gate-error" id="password-error" role="alert">Access Denied</div>
+    </div>
+  </div>
+
+  <!-- ═══ App Shell ════════════════════════════════════════════════════════════ -->
+  <div class="app-shell sidebar-collapsed" id="app-shell">
+
+    <!-- ═══ Sidebar Navigation ══════════════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+      <div class="sidebar-header">
+        <div class="sidebar-logo" aria-hidden="true">E</div>
+        <span class="sidebar-brand-text">EIM Console</span>
+        <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="sidebar-nav-item active" data-section="dashboard" aria-current="page">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+            </svg>
+          </span>
+          <span class="nav-label">Dashboard</span>
+        </button>
+
+        <button class="sidebar-nav-item" data-section="tokenomics">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+            </svg>
+          </span>
+          <span class="nav-label">Tokenomics</span>
+        </button>
+
+        <button class="sidebar-nav-item" data-section="master-control">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </span>
+          <span class="nav-label">Master Control</span>
+        </button>
+
+        <button class="sidebar-nav-item" data-section="ledger">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </span>
+          <span class="nav-label">Ledger Audit</span>
+        </button>
+
+        <button class="sidebar-nav-item" data-section="settings">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+          </span>
+          <span class="nav-label">Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
+          <span id="sidebar-status-text">System Nominal</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══ Sidebar Overlay (mobile) ════════════════════════════════════════════ -->
+    <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+    <!-- ═══ Mobile Menu Toggle ══════════════════════════════════════════════════ -->
+    <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
+    <!-- ═══ Main Content ════════════════════════════════════════════════════════ -->
+    <main class="main-content" role="main">
+
+      <!-- ═══ Dashboard Section ═════════════════════════════════════════════════ -->
+      <section class="section-view active" id="section-dashboard" aria-labelledby="dashboard-heading">
+
+        <!-- Canvas Section (Upper) -->
+        <div class="canvas-section">
+          <div class="canvas-header">
+            <h2 class="canvas-title" id="dashboard-heading">Executive View</h2>
+            <div class="canvas-status">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span>Active</span>
+            </div>
+          </div>
+          <div class="canvas-frame">
+            <div class="canvas-placeholder">
+              <div class="canvas-placeholder-icon">
+                <!-- Monitor SVG -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              </div>
+              <span class="canvas-placeholder-label">Avatar Interface</span>
+              <span class="canvas-placeholder-sub">Real-time executive avatar feed will render here. Connect a WebRTC endpoint to activate.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Management Frame (Lower) -->
+        <div class="management-frame" id="management-frame" role="tablist" aria-label="Management panels">
+          <div class="tab-bar">
+            <button class="tab-btn active" role="tab" aria-selected="true" data-tab="tokenomics-tab" id="tab-tokenomics">Tokenomics Dashboard</button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-tab="mastercontrol-tab" id="tab-mastercontrol">Master Control</button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-tab="telemetry-tab" id="tab-telemetry">System Telemetry</button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-tab="responses-tab" id="tab-responses">Last Agent Responses</button>
+          </div>
+
+          <div class="tab-content-wrapper">
+            <!-- Tokenomics Panel -->
+            <div class="tab-panel active" role="tabpanel" id="tokenomics-tab" aria-labelledby="tab-tokenomics">
+              <div class="tab-panel-content">
+                <div class="metric-grid">
+                  <div class="metric">
+                    <div class="metric-label">Total Supply</div>
+                    <div class="metric-value">1,000,000</div>
+                    <div class="metric-change up">Fully minted</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Circulating</div>
+                    <div class="metric-value">847,230</div>
+                    <div class="metric-change up">+2.3%</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Staked</div>
+                    <div class="metric-value">512,400</div>
+                    <div class="metric-change up">61.2% APR</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Treasury</div>
+                    <div class="metric-value">152,770</div>
+                    <div class="metric-change down">15.3% of supply</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Master Control Panel -->
+            <div class="tab-panel" role="tabpanel" id="mastercontrol-tab" aria-labelledby="tab-mastercontrol">
+              <div class="tab-panel-content">
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">System Operations</span>
+                    <span class="card-badge">Ready</span>
+                  </div>
+                  <div class="card-body">
+                    <p>Master control panel provides direct access to core system orchestration functions. Use with caution.</p>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-header">
+                    <span class="card-title">Active Workflows</span>
+                    <span class="card-badge">3 running</span>
+                  </div>
+                  <div class="card-body">
+                    <p>Monitor and manage active agent workflows, deployment pipelines, and infrastructure operations.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Telemetry Panel -->
+            <div class="tab-panel" role="tabpanel" id="telemetry-tab" aria-labelledby="tab-telemetry">
+              <div class="tab-panel-content">
+                <div class="metric-grid">
+                  <div class="metric">
+                    <div class="metric-label">CPU Load</div>
+                    <div class="metric-value">43%</div>
+                    <div class="metric-change up">Avg 5m</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Memory</div>
+                    <div class="metric-value">2.8 GB</div>
+                    <div class="metric-change up">of 8 GB</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Requests/min</div>
+                    <div class="metric-value">1,247</div>
+                    <div class="metric-change up">±12%</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">P99 Latency</div>
+                    <div class="metric-value">142ms</div>
+                    <div class="metric-change down">-8ms</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Agent Responses Panel -->
+            <div class="tab-panel" role="tabpanel" id="responses-tab" aria-labelledby="tab-responses">
+              <div class="tab-panel-content">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Agent</th>
+                      <th>Action</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="text-mono">2026-07-28 14:32:10</td>
+                      <td>Control Loop A</td>
+                      <td>Hypothesis formed</td>
+                      <td><span class="text-accent">OK</span></td>
+                    </tr>
+                    <tr>
+                      <td class="text-mono">2026-07-28 14:32:08</td>
+                      <td>Actuator B</td>
+                      <td>Tool execution completed</td>
+                      <td><span class="text-accent">OK</span></td>
+                    </tr>
+                    <tr>
+                      <td class="text-mono">2026-07-28 14:31:55</td>
+                      <td>Actuator B</td>
+                      <td>Gateway check passed</td>
+                      <td><span class="text-accent">OK</span></td>
+                    </tr>
+                    <tr>
+                      <td class="text-mono">2026-07-28 14:31:50</td>
+                      <td>Control Loop A</td>
+                      <td>RAG corpus loaded</td>
+                      <td><span class="text-accent">OK</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ Tokenomics Section ═════════════════════════════════════════════════ -->
+      <section class="section-view" id="section-tokenomics" aria-labelledby="tokenomics-heading">
+        <div class="section-header">
+          <h2 class="section-title" id="tokenomics-heading">Tokenomics</h2>
+          <p class="section-subtitle">Supply metrics, distribution, and economic parameters</p>
+        </div>
+        <div class="section-body">
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="metric-label">Total Supply</div>
+              <div class="metric-value">1M</div>
+              <div class="metric-change up">Fixed cap</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Holders</div>
+              <div class="metric-value">3,421</div>
+              <div class="metric-change up">+12 today</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Volume 24h</div>
+              <div class="metric-value">$47.2K</div>
+              <div class="metric-change up">+8.4%</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Market Cap</div>
+              <div class="metric-value">$2.8M</div>
+              <div class="metric-change up">Fully diluted</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ Master Control Section ═════════════════════════════════════════════ -->
+      <section class="section-view" id="section-master-control" aria-labelledby="mastercontrol-heading">
+        <div class="section-header">
+          <h2 class="section-title" id="mastercontrol-heading">Master Control</h2>
+          <p class="section-subtitle">Orchestration panel for core system operations</p>
+        </div>
+        <div class="section-body">
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+              </svg>
+            </div>
+            <p class="empty-state-text">Master Control Panel — Workflows and pipelines will be listed here.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ Ledger Audit Section ═══════════════════════════════════════════════ -->
+      <section class="section-view" id="section-ledger" aria-labelledby="ledger-heading">
+        <div class="section-header">
+          <h2 class="section-title" id="ledger-heading">Ledger Audit</h2>
+          <p class="section-subtitle">Tamper-evident execution chain verification</p>
+        </div>
+        <div class="section-body">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Entries</th>
+                <th>Chain Hash</th>
+                <th>Integrity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-mono">2026-07-28</td>
+                <td>847</td>
+                <td class="text-mono" style="font-size:12px">e3b0c442...a4b8</td>
+                <td><span class="text-accent">Verified</span></td>
+              </tr>
+              <tr>
+                <td class="text-mono">2026-07-27</td>
+                <td>1,203</td>
+                <td class="text-mono" style="font-size:12px">d2a1f530...c9d7</td>
+                <td><span class="text-accent">Verified</span></td>
+              </tr>
+              <tr>
+                <td class="text-mono">2026-07-26</td>
+                <td>962</td>
+                <td class="text-mono" style="font-size:12px">f8b3a221...e6f0</td>
+                <td><span class="text-accent">Verified</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══ Settings Section ═══════════════════════════════════════════════════ -->
+      <section class="section-view" id="section-settings" aria-labelledby="settings-heading">
+        <div class="section-header">
+          <h2 class="section-title" id="settings-heading">Settings</h2>
+          <p class="section-subtitle">System configuration and preferences</p>
+        </div>
+        <div class="section-body">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Session</span>
+            </div>
+            <div class="card-body">
+              <p>Session active. <button class="text-accent font-semibold" id="logout-btn" type="button">Logout</button></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═══ Application Logic ════════════════════════════════════════════════════ -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
