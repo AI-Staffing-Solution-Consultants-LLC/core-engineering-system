@@ -132,6 +132,10 @@
           <div class="canvas-header">
             <h2 class="canvas-title" id="dashboard-heading">Executive View</h2>
             <div class="canvas-status">
+              <span class="canvas-face-badge" id="canvas-face-badge">
+                <span class="canvas-face-badge-dot" aria-hidden="true"></span>
+                <span>Face Active</span>
+              </span>
               <span class="status-dot" aria-hidden="true"></span>
               <span>Active</span>
             </div>
@@ -146,6 +150,20 @@
               </div>
               <span class="canvas-placeholder-label">Avatar Interface</span>
               <span class="canvas-placeholder-sub">Real-time executive avatar feed will render here. Connect a WebRTC endpoint to activate.</span>
+            </div>
+
+            <!-- Face Tracker Overlay -->
+            <div class="face-tracker-overlay hidden" id="face-tracker-overlay" aria-hidden="true">
+              <canvas id="face-mesh-canvas"></canvas>
+              <div class="face-tracker-loading" id="face-tracker-loading">
+                <div class="face-tracker-spinner" aria-hidden="true"></div>
+                <span class="face-tracker-loading-label">Initializing face tracker…</span>
+              </div>
+              <div class="face-tracker-status hidden" id="face-tracker-status">
+                <div class="face-tracker-status-icon" id="face-tracker-status-icon" aria-hidden="true"></div>
+                <p class="face-tracker-status-text" id="face-tracker-status-text"></p>
+                <button class="face-tracker-status-action hidden" id="face-tracker-retry-btn" type="button">Retry</button>
+              </div>
             </div>
           </div>
         </div>
@@ -398,5 +416,6 @@
 
   <!-- ═══ Application Logic ════════════════════════════════════════════════════ -->
   <script type="module" src="app.js"></script>
+  <script type="module" src="mediapipe-face-tracker.js"></script>
 </body>
 </html>

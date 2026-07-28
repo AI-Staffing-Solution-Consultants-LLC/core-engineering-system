@@ -34,12 +34,27 @@ const dom = {
   tabPanels: document.querySelectorAll('.tab-panel[role="tabpanel"]'),
 
   logoutBtn: document.getElementById('logout-btn'),
+
+  // Face tracker
+  faceTrackerOverlay: document.getElementById('face-tracker-overlay'),
+  faceTrackerLoading: document.getElementById('face-tracker-loading'),
+  faceTrackerStatus: document.getElementById('face-tracker-status'),
+  faceTrackerStatusIcon: document.getElementById('face-tracker-status-icon'),
+  faceTrackerStatusText: document.getElementById('face-tracker-status-text'),
+  faceTrackerRetryBtn: document.getElementById('face-tracker-retry-btn'),
+  faceBadge: document.getElementById('canvas-face-badge'),
+  canvasPlaceholder: document.querySelector('.canvas-placeholder'),
 };
 
 /* ── State ──────────────────────────────────────────────────────────────── */
 
 let activeSection = 'dashboard';
 let isMobileOpen = false;
+let faceTrackerInstance = null;
+let faceTrackerInitialized = false;
+
+// Expose blendshape data for downstream consumers (Tasks 7, 8)
+let latestBlendshapes = null;
 
 /* ── Utilities ──────────────────────────────────────────────────────────── */
 
@@ -109,6 +124,7 @@ async function handlePasswordSubmit() {
     const sessionId = generateSessionId();
     localStorage.setItem(SESSION_KEY, sessionId);
     hidePasswordGate();
+    initFaceTracker();
   } else {
     showPasswordError();
   }
@@ -151,6 +167,15 @@ function checkSession() {
  */
 function logout() {
   localStorage.removeItem(SESSION_KEY);
+
+  if (faceTrackerInstance) {
+    faceTrackerInstance.stop();
+    faceTrackerInstance = null;
+    faceTrackerInitialized = false;
+    latestBlendshapes = null;
+    handleFaceTrackerStatus('idle');
+  }
+
   dom.passwordGate.classList.remove('hidden');
   dom.passwordInput.value = '';
   dom.passwordInput.focus();
@@ -320,6 +345,13 @@ function bindEvents() {
     });
   });
 
+  // Face tracker retry button
+  if (dom.faceTrackerRetryBtn) {
+    dom.faceTrackerRetryBtn.addEventListener('click', () => {
+      initFaceTracker();
+    });
+  }
+
   // Logout
   if (dom.logoutBtn) {
     dom.logoutBtn.addEventListener('click', (e) => {
@@ -330,6 +362,104 @@ function bindEvents() {
 
   // Window resize
   window.addEventListener('resize', handleResize);
+}
+
+/* ── Face Tracker Integration ──────────────────────────────────────────── */
+
+async function initFaceTracker() {
+  if (faceTrackerInitialized) return;
+  faceTrackerInitialized = true;
+
+  // Show overlay and loading spinner
+  dom.faceTrackerOverlay?.classList.remove('hidden');
+  dom.faceTrackerOverlay?.removeAttribute('aria-hidden');
+  dom.faceTrackerLoading?.classList.remove('hidden');
+  dom.faceTrackerStatus?.classList.add('hidden');
+
+  try {
+    const { default: FaceTracker } = await import('./mediapipe-face-tracker.js');
+
+    faceTrackerInstance = new FaceTracker({
+      canvasId: 'face-mesh-canvas',
+      containerSelector: '.canvas-frame',
+    });
+
+    faceTrackerInstance.addEventListener('status', (e) => {
+      const { status, message } = e.detail;
+      handleFaceTrackerStatus(status, message);
+    });
+
+    faceTrackerInstance.addEventListener('blendshape', (e) => {
+      latestBlendshapes = e.detail;
+      // Downstream consumers (Tasks 7, 8) poll `getLatestBlendshapes()`
+    });
+
+    await faceTrackerInstance.start();
+  } catch (err) {
+    console.error('[EIM] Face tracker init failed:', err);
+    handleFaceTrackerStatus('error', err.message || 'Unknown error');
+    faceTrackerInitialized = false;
+  }
+}
+
+function handleFaceTrackerStatus(status, message) {
+  switch (status) {
+    case 'initializing':
+      dom.faceTrackerLoading?.classList.remove('hidden');
+      dom.faceTrackerStatus?.classList.add('hidden');
+      dom.faceBadge?.classList.remove('visible');
+      break;
+
+    case 'running':
+      dom.faceTrackerLoading?.classList.add('hidden');
+      dom.faceTrackerStatus?.classList.add('hidden');
+      dom.faceBadge?.classList.add('visible');
+      dom.canvasPlaceholder?.classList.add('hidden');
+      break;
+
+    case 'no-camera':
+      dom.faceTrackerLoading?.classList.add('hidden');
+      dom.faceTrackerStatus?.classList.remove('hidden');
+      dom.faceBadge?.classList.remove('visible');
+      faceTrackerInitialized = false;
+      dom.faceTrackerStatusIcon.className = 'face-tracker-status-icon warning';
+      dom.faceTrackerStatusIcon.innerHTML =
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/><line x1="5" y1="3" x2="5" y2="5"/></svg>';
+      dom.faceTrackerStatusText.textContent =
+        message || 'Camera access denied. Please enable camera permissions to use face tracking.';
+      dom.faceTrackerRetryBtn.classList.remove('hidden');
+      break;
+
+    case 'error':
+      dom.faceTrackerLoading?.classList.add('hidden');
+      dom.faceTrackerStatus?.classList.remove('hidden');
+      dom.faceBadge?.classList.remove('visible');
+      dom.faceTrackerStatusIcon.className = 'face-tracker-status-icon error';
+      dom.faceTrackerStatusIcon.innerHTML =
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+      dom.faceTrackerStatusText.textContent =
+        message || 'Face tracker initialization failed. Try refreshing the page.';
+      dom.faceTrackerRetryBtn.classList.remove('hidden');
+      faceTrackerInitialized = false;
+      break;
+
+    case 'idle':
+    default:
+      dom.faceTrackerLoading?.classList.add('hidden');
+      dom.faceTrackerStatus?.classList.add('hidden');
+      dom.faceBadge?.classList.remove('visible');
+      dom.faceTrackerOverlay?.classList.add('hidden');
+      dom.faceTrackerOverlay?.setAttribute('aria-hidden', 'true');
+      break;
+  }
+}
+
+/**
+ * Public getter for downstream consumers (Tasks 7, 8).
+ * Returns the latest blendshape scores or null.
+ */
+export function getLatestBlendshapes() {
+  return latestBlendshapes;
 }
 
 /* ── Initialization ─────────────────────────────────────────────────────── */
@@ -343,6 +473,7 @@ function init() {
   if (hasSession) {
     // Dashboard is already visible; restore sidebar state
     restoreSidebarState();
+    initFaceTracker();
   } else {
     // Show password gate, focus input
     dom.passwordInput.focus();

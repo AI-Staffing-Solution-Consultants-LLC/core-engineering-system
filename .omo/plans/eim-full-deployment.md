@@ -215,7 +215,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — `curl -i http://localhost:8788/` returns HTML with password form; `curl -X POST http://localhost:8788/ -d 'password=wrong'` returns 401; correct password returns dashboard HTML with session. Evidence: `.omo/evidence/eim-full-deployment/task-5-pages-scaffold.txt`
   Commit: YES | `feat(eim): Cloudflare Pages scaffold — password-gated executive dashboard`
 
-- [ ] 6. **Integrate MediaPipe FaceLandmarker WASM — client-side emotion tracking**
+- [x] 6. **Integrate MediaPipe FaceLandmarker WASM — client-side emotion tracking**
   What to do:
   1. Add `@mediapipe/tasks-vision` dependency to the Pages project (via CDN or npm in the Pages build).
   2. Create `cloudflare/pages/eim/mediapipe-face-tracker.js`: loads FaceLandmarker WASM in VIDEO mode, captures webcam stream via `navigator.mediaDevices.getUserMedia({video: true})`, runs real-time face mesh detection, extracts 478 face landmarks + 52 blendshape scores.

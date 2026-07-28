@@ -613,6 +613,155 @@ a {
   line-height: var(--leading-relaxed);
 }
 
+/* ── Face Tracker Overlay ───────────────────────────────────────────────── */
+
+.face-tracker-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.face-tracker-overlay.hidden {
+  display: none;
+}
+
+.face-tracker-overlay canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Face tracker loading spinner */
+.face-tracker-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.face-tracker-loading.hidden {
+  display: none;
+}
+
+.face-tracker-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--color-border-light);
+  border-top-color: var(--color-accent);
+  border-radius: var(--radius-full);
+  animation: spinnerRotate 0.8s linear infinite;
+}
+
+@keyframes spinnerRotate {
+  to { transform: rotate(360deg); }
+}
+
+.face-tracker-loading-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+/* Face tracker status message (error / no-camera) */
+.face-tracker-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-6);
+  z-index: 3;
+}
+
+.face-tracker-status.hidden {
+  display: none;
+}
+
+.face-tracker-status-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+
+.face-tracker-status-icon.warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--color-warning);
+}
+
+.face-tracker-status-icon.error {
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--color-error);
+}
+
+.face-tracker-status-text {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  max-width: 260px;
+  line-height: var(--leading-relaxed);
+}
+
+.face-tracker-status-action {
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  pointer-events: all;
+  transition: color var(--transition-fast);
+}
+
+.face-tracker-status-action:hover {
+  color: var(--color-accent-strong);
+}
+
+/* Face tracker badge in canvas header */
+.canvas-face-badge {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--transition-normal),
+              transform var(--transition-normal);
+}
+
+.canvas-face-badge.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.canvas-face-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent-glow);
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
 /* ── Management Frame (Lower) ───────────────────────────────────────────── */
 
 .management-frame {

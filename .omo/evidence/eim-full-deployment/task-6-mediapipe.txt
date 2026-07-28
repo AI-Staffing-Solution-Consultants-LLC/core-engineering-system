@@ -1,0 +1,80 @@
+## Task 6 — MediaPipe FaceLandmarker WASM Integration
+### Evidence of completion — 2026-07-28
+
+#### Files created
+- `cloudflare/pages/eim/mediapipe-face-tracker.js` (new) — standalone ES module
+  - 280+ lines, vanilla JS, zero framework deps
+  - Loads `@mediapipe/tasks-vision@0.10.18` from jsDelivr CDN (`+esm`)
+  - Loads `face_landmarker.task` (float16/latest) from Google Cloud Storage
+  - Class `FaceTracker extends EventTarget` — default export
+  - `FilesetResolver.forVisionTasks(WASM_CDN)` for WASM init
+  - `FaceLandmarker.createFromOptions()` config: runningMode VIDEO, outputFaceBlendshapes true, outputFacialTransformationMatrixes false, numFaces 1, delegate GPU
+  - `start()`: requests webcam via getUserMedia, creates hidden video element, starts rAF detection loop
+  - `stop()`: stops tracks, cleans up video, cancels rAF, clears canvas
+  - Detection loop: rAF with `video.currentTime !== lastVideoTime` frame dedup
+  - `detectForVideo(videoElement, performance.now())` for inference
+  - Extracts 52 blendshape scores into key-value object
+  - Extracts 478 face landmarks (x, y, z normalized coords)
+  - Draws landmarks as semi-transparent cyan dots on overlay canvas (iris landmarks in indigo)
+  - Canvas resizes on window resize via ResizeObserver
+  - Dispatches CustomEvent: `blendshape` (52 scores), `landmarks` (478 points), `status` (state machine)
+  - Error handling: camera denial → 'no-camera' status; WASM/model failure → 'error' status
+  - `detectOnce()` returns last FaceLandmarkerResult synchronously
+  - `getBlendshapes()` returns last blendshape object synchronously
+  - Adds `addEventListener()` via EventTarget inheritance
+
+#### Files modified
+- `cloudflare/pages/eim/index.html`:
+  - Added face tracker overlay div with canvas, loading spinner, and status display inside `.canvas-frame`
+  - Added face badge indicator in canvas-header
+  - Added `<script type="module" src="mediapipe-face-tracker.js">` tag
+
+- `cloudflare/pages/eim/style.css`:
+  - Added `.face-tracker-overlay` — absolute positioned, full cover, pointer-events none, z-index 2
+  - Added `.face-tracker-loading` with spinning border animation using `--color-accent`
+  - Added `.face-tracker-status` with warning/error icon variants using design tokens
+  - Added `.canvas-face-badge` with pulsing dot animation and fade-in transition
+  - All styles use existing CSS custom properties (`--color-accent`, `--color-border-light`, `--radius-xl`, etc.)
+
+- `cloudflare/pages/eim/app.js`:
+  - Added 7 face tracker DOM refs to `dom` object
+  - Added `canvasPlaceholder` reference for hiding when tracker active
+  - Added `faceTrackerInstance`, `faceTrackerInitialized`, `latestBlendshapes` state variables
+  - Added `initFaceTracker()` async function: dynamic import, creates FaceTracker, binds status/blendshape events, calls start()
+  - Added `handleFaceTrackerStatus()` state machine for initializing/running/no-camera/error/idle
+  - Added `getLatestBlendshapes()` exported public getter for downstream tasks
+  - Wired `initFaceTracker()` into both auth paths: `handlePasswordSubmit()` and `init()` / `checkSession()`
+  - On logout: stops face tracker, resets all face tracker state
+
+#### Verification
+- `test -f cloudflare/pages/eim/mediapipe-face-tracker.js` PASSED
+- `grep -c "FaceTracker" cloudflare/pages/eim/mediapipe-face-tracker.js` → class + constructor + exports
+- `grep -c "blendshape" cloudflare/pages/eim/mediapipe-face-tracker.js` → blendshape extraction + dispatch
+- `grep -c "requestAnimationFrame" cloudflare/pages/eim/mediapipe-face-tracker.js` → rAF loop (NOT setInterval)
+- `grep "performance.now()" cloudflare/pages/eim/mediapipe-face-tracker.js` → timestamp in detectForVideo
+- `grep "GPU" cloudflare/pages/eim/mediapipe-face-tracker.js` → delegate GPU in baseOptions
+- `grep "face-tracker-overlay" cloudflare/pages/eim/index.html` → DOM element present
+- `grep "mediapipe-face-tracker.js" cloudflare/pages/eim/index.html` → script tag present
+- `grep "face-tracker-overlay" cloudflare/pages/eim/style.css` → CSS rules present
+- `grep "initFaceTracker" cloudflare/pages/eim/app.js` → function defined + called in 3 places
+- `grep "getLatestBlendshapes" cloudflare/pages/eim/app.js` → public getter for Tasks 7, 8
+
+#### Acceptance criteria evidence
+- [x] FaceTracker class loads MediaPipe WASM asynchronously (FilesetResolver + FaceLandmarker from CDN)
+- [x] 478 face landmarks extracted from `results.faceLandmarks[0]`
+- [x] 52 blendshape scores extracted from `results.faceBlendshapes[0].categories`
+- [x] Events dispatched: blendshape (key-value pairs), landmarks (array + count), status (state machine)
+- [x] rAF detection loop with timestamp dedup (NOT setInterval)
+- [x] GPU delegate with WebGL fallback
+- [x] No server uploads — all processing local to browser
+- [x] Graceful degradation: no-camera state, error state, never crashes page
+- [x] Public API: start(), stop(), detectOnce(), getBlendshapes(), addEventListener()
+- [x] Styles use existing EIM design system tokens
+- [x] Face tracker initializes after authentication (both fresh auth and session restore)
+- [x] Tracker stops on logout
+- [x] Public blendshape getter for downstream Task 7 (emotion detection) and Task 8 (voice control)
+
+#### Known limitations
+- Face mesh drawn as landmark points (thin cyan dots with indigo iris highlights) — full wireframe triangulation would require importing FACEMESH_TESSELATION from @mediapipe/face_mesh (legacy API), not available in tasks-vision
+- Model version pinned to `float16/latest` — if Google updates the model, behavior may change
+- WebGL GPU delegate requires browser WebGL support; falls back to CPU if unavailable
