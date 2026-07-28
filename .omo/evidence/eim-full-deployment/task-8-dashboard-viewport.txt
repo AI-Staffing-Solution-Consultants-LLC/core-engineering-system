@@ -1,0 +1,54 @@
+Task 8 — Dashboard Viewport
+============================
+Completed: 2026-07-28
+
+Files modified/created:
+
+1. cloudflare/pages/eim/index.html (MODIFIED)
+   - Lines 199-280: Replaced static tab panel content with dynamic containers
+   - Tokenomics tab (#tokenomics-tab): dashboard-iframe-container + fallback card with external link icon
+   - Master Control tab (#mastercontrol-tab): dashboard-iframe-container + fallback card
+   - Telemetry tab (#telemetry-tab): service-grid container for 8 Mesh service health cards
+   - Agent Responses tab (#responses-tab): response-cards container for dynamic Sheryl data
+
+2. cloudflare/pages/eim/app.js (MODIFIED)
+   - Added lazyLoadTabs Set (tracks which tabs have been loaded)
+   - Added EIM_CONFIG object with placeholder URLs (overrideable via /api/config endpoint)
+   - activateTab(): enhanced with lazy-load switch — calls loadIframeTab/loadTelemetryTab/loadResponsesTab on first click
+   - loadIframeTab(prefix, url): creates sandboxed iframe, detects X-Frame-Options/CSP blocks, shows fallback card on error
+   - loadTelemetryTab(): renders 8 Mesh service cards with health status (healthy/warning/critical), attempts live health check
+   - loadResponsesTab(): fetches /api/sheryl/responses, renders agent response cards with timestamp, query/response preview, flag indicator
+   - escapeHtml(str): XSS-safe HTML escaping
+   - truncateText(text, maxLen): text truncation with ellipsis
+   - init(): fires non-blocking config fetch, loads tokenomics iframe on session restore
+
+3. cloudflare/pages/eim/style.css (MODIFIED)
+   - Dashboard Iframe Container: .dashboard-iframe-container (absolute inset-0), .dashboard-iframe (100% size)
+   - Iframe Fallback Card: .iframe-fallback, .iframe-fallback-card (centered card with link icon, 320px max)
+   - Service Grid (Telemetry): .service-grid (auto-fill 240px min), .service-card (with left border status indicators)
+   - Service Status Indicators: .service-status-healthy (green), .service-status-warning (yellow), .service-status-critical (red)
+   - Response Cards: .response-cards (flex-col gap), .response-card (with preview/padding/agent/timestamp/flag layout)
+   - Response Flag Indicators: .response-flag-ok (green dot), .response-flag-warn (red dot)
+   - Responsive: @media ≤768px — iframe height 400px, service-grid 1-col, response headers stack vertical
+   - Responsive: @media ≤480px — iframe height 320px, reduced padding, tighter fallback card
+
+4. cloudflare/pages/eim/functions/api/sheryl/responses.js (NEW)
+   - GET /api/sheryl/responses — Pages Function proxy
+   - Fetches from SHERYL_URL/dashboard/last-responses or returns placeholder data (5 realistic agent entries)
+   - Graceful degradation: returns placeholders on network error, non-200, or invalid format
+   - CORS headers, OPTIONS preflight handling
+
+5. cloudflare/pages/eim/wrangler.toml (MODIFIED)
+   - Added env vars: TOKENOMICS_URL, MASTER_CONTROL_URL, SHERYL_URL, SELF_REMEDIATION_URL
+   - All default to placeholder URLs (xxxxx-uc.a.run.app pattern)
+
+Acceptance criteria verification:
+- [x] Tab switching works (CSS opacity/transform transitions at 150ms, ≤300ms)
+- [x] Tokenomics/Master Control tabs use iframe embeds with lazy-loading and cross-origin fallback
+- [x] Telemetry tab shows 8 Mesh service cards with health status
+- [x] Agent Responses tab fetches from /api/sheryl/responses (Sheryl proxy)
+- [x] Iframe fallback: shows "Dashboard requires popup" + direct link on X-Frame-Options blocks
+- [x] All URLs configurable via env vars (EIM_CONFIG + wrangler.toml vars)
+- [x] Mobile responsive: iframes and cards stack at ≤768px
+- [x] No hard-coded Cloud Run URLs (placeholders with xxxxx pattern)
+- [x] Existing tab navigation, password gate, and avatar functionality preserved

@@ -244,7 +244,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — E2E: user opens EIM page → password gate → avatar window loads → user speaks → avatar responds (Tavus STT→LLM→TTS→Phoenix face render). failure — Tavus API unreachable: avatar window shows "Avatar service connecting..." spinner, no crash. Evidence: `.omo/evidence/eim-full-deployment/task-7-tavus.txt`
   Commit: YES | `feat(eim): Tavus WebRTC CVI — 2-way AI avatar video conversation window`
 
-- [ ] 8. **Secondary dashboard viewport — iframes for tokenomics and master-control**
+- [x] 8. **Secondary dashboard viewport — iframes for tokenomics and master-control**
   What to do:
   1. In `cloudflare/pages/eim/index.html`: below the upper avatar canvas, add a tabbed iframe/view panel with tabs: "Tokenomics Dashboard", "Master Control", "System Telemetry", "Ledger Audit".
   2. Each tab loads an iframe or embedded view pointing to the relevant Cloud Run endpoint or Cloudflare Pages-hosted dashboard:

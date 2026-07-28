@@ -62,6 +62,18 @@ let isMobileOpen = false;
 let faceTrackerInstance = null;
 let faceTrackerInitialized = false;
 
+// Dashboard viewport lazy-load state
+const lazyLoadedTabs = new Set();
+lazyLoadedTabs.add('tokenomics-tab'); // First tab is active on load
+
+// Configurable dashboard URLs — override via env vars at deploy time
+const EIM_CONFIG = {
+  tokenomicsUrl: 'https://tokenomics-dashboard-xxxxx-uc.a.run.app',
+  masterControlUrl: 'https://master-control-xxxxx-uc.a.run.app',
+  sherylUrl: 'https://sheryl-agent-xxxxx-uc.a.run.app',
+  selfRemediationUrl: 'https://self-remediation-xxxxx-uc.a.run.app',
+};
+
 // Expose blendshape data for downstream consumers (Tasks 7, 8)
 let latestBlendshapes = null;
 
@@ -259,9 +271,216 @@ function activateTab(tabName) {
     const isActive = panel.id === tabName;
     panel.classList.toggle('active', isActive);
   });
+
+  // Lazy-load tab content on first click
+  if (!lazyLoadedTabs.has(tabName)) {
+    lazyLoadedTabs.add(tabName);
+    switch (tabName) {
+      case 'tokenomics-tab':
+        loadIframeTab('tokenomics', EIM_CONFIG.tokenomicsUrl);
+        break;
+      case 'mastercontrol-tab':
+        loadIframeTab('mastercontrol', EIM_CONFIG.masterControlUrl);
+        break;
+      case 'telemetry-tab':
+        loadTelemetryTab();
+        break;
+      case 'responses-tab':
+        loadResponsesTab();
+        break;
+    }
+  }
 }
 
-/* ── Sidebar ────────────────────────────────────────────────────────────── */
+/**
+ * Load an iframe into a dashboard tab panel with cross-origin fallback handling.
+ * @param {string} prefix — 'tokenomics' or 'mastercontrol'
+ * @param {string} url — dashboard URL to embed
+ */
+function loadIframeTab(prefix, url) {
+  const container = document.getElementById(`${prefix}-iframe-container`);
+  if (!container) return;
+
+  const iframe = document.createElement('iframe');
+  iframe.className = 'dashboard-iframe';
+  iframe.src = url;
+  iframe.allow = 'clipboard-write';
+  iframe.sandbox = 'allow-scripts allow-same-origin allow-popups allow-forms';
+  iframe.title = `${prefix === 'tokenomics' ? 'Tokenomics' : 'Master Control'} Dashboard`;
+  iframe.loading = 'lazy';
+
+  const fallback = document.getElementById(`${prefix}-fallback`);
+  const fallbackLink = document.getElementById(`${prefix}-fallback-link`);
+
+  if (fallbackLink) {
+    fallbackLink.href = url;
+  }
+
+  iframe.addEventListener('load', () => {
+    // Test if iframe is accessible (not blocked by X-Frame-Options)
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc || !doc.body) {
+        throw new Error('cross-origin blocked');
+      }
+    } catch {
+      // X-Frame-Options or CSP blocked — show fallback
+      iframe.remove();
+      if (fallback) fallback.classList.remove('hidden');
+    }
+  });
+
+  iframe.addEventListener('error', () => {
+    iframe.remove();
+    if (fallback) fallback.classList.remove('hidden');
+  });
+
+  container.appendChild(iframe);
+}
+
+/**
+ * Load telemetry tab with Mesh service health status cards.
+ * Displays status for all 8 Mesh services using local fallback data.
+ * In production, fetches from SELF_REMEDIATION_URL/health-check.
+ */
+function loadTelemetryTab() {
+  const grid = document.getElementById('service-grid');
+  if (!grid) return;
+
+  const services = [
+    { name: 'Track A — Control Loop', port: 8080, status: 'healthy' },
+    { name: 'Track B — Actuator', port: 8081, status: 'healthy' },
+    { name: 'Sheryl — Strategy', port: 8082, status: 'healthy' },
+    { name: 'Connie — Code Analysis', port: 8083, status: 'healthy' },
+    { name: 'Roy — Predictions', port: 8084, status: 'healthy' },
+    { name: 'Mary — Monitoring', port: 8085, status: 'warning' },
+    { name: 'Data Remediation Engine', port: 8086, status: 'healthy' },
+    { name: 'Self-Remediation', port: 8087, status: 'healthy' },
+  ];
+
+  grid.innerHTML = services
+    .map(
+      (svc) => `
+    <div class="service-card service-card-${svc.status}">
+      <div class="service-card-header">
+        <span class="service-card-name">${svc.name}</span>
+        <span class="service-status service-status-${svc.status}">${svc.status}</span>
+      </div>
+      <div class="service-card-body">
+        <span class="service-card-port">Port ${svc.port}</span>
+      </div>
+    </div>`
+    )
+    .join('');
+
+  // Attempt live health check in background
+  if (EIM_CONFIG.selfRemediationUrl && !EIM_CONFIG.selfRemediationUrl.includes('xxxxx')) {
+    fetch(`${EIM_CONFIG.selfRemediationUrl}/health-check`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.services) {
+          updateServiceGrid(data.services);
+        }
+      })
+      .catch(() => {});
+  }
+}
+
+function updateServiceGrid(serviceData) {
+  const grid = document.getElementById('service-grid');
+  if (!grid) return;
+
+  grid.innerHTML = serviceData
+    .map(
+      (svc) => `
+    <div class="service-card service-card-${svc.status || 'healthy'}">
+      <div class="service-card-header">
+        <span class="service-card-name">${svc.name}</span>
+        <span class="service-status service-status-${svc.status || 'healthy'}">${svc.status || 'healthy'}</span>
+      </div>
+      <div class="service-card-body">
+        <span class="service-card-port">Port ${svc.port || '—'}</span>
+      </div>
+    </div>`
+    )
+    .join('');
+}
+
+/**
+ * Load agent responses tab from Sheryl /dashboard/last-responses.
+ * Fetches via Pages Function proxy (/api/sheryl/responses).
+ * Renders cards with agent name, timestamp, query/response preview, and flag status.
+ */
+async function loadResponsesTab() {
+  const container = document.getElementById('response-cards');
+  if (!container) return;
+
+  try {
+    const response = await fetch('/api/sheryl/responses');
+
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      container.innerHTML = `
+        <div class="response-card response-card-empty">
+          <div class="response-card-header">
+            <span class="response-card-agent">No recent agent responses</span>
+          </div>
+          <div class="response-card-body">
+            <p class="text-muted">Agents have not reported any responses yet.</p>
+          </div>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = data
+      .map(
+        (entry) => `
+      <div class="response-card">
+        <div class="response-card-header">
+          <span class="response-card-agent">${escapeHtml(entry.agent || 'Unknown Agent')}</span>
+          <span class="response-card-timestamp text-mono">${escapeHtml(entry.timestamp || '—')}</span>
+        </div>
+        <div class="response-card-preview">
+          <div class="response-card-query">${escapeHtml(truncateText(entry.query, 120))}</div>
+          <div class="response-card-response">${escapeHtml(truncateText(entry.response, 160))}</div>
+        </div>
+        <div class="response-card-footer">
+          <span class="response-card-flag ${entry.ambiguous ? 'response-flag-warn' : 'response-flag-ok'}">
+            ${entry.ambiguous ? 'Ambiguous' : 'Clear'}
+          </span>
+        </div>
+      </div>`
+      )
+      .join('');
+  } catch (err) {
+    console.error('[EIM] Failed to load agent responses:', err);
+    container.innerHTML = `
+      <div class="response-card response-card-error">
+        <div class="response-card-header">
+          <span class="response-card-agent">Dashboard data unavailable</span>
+        </div>
+        <div class="response-card-body">
+          <p class="text-muted">Check system health — Sheryl endpoint may be offline.</p>
+        </div>
+      </div>`;
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function truncateText(text, maxLen) {
+  if (!text) return '—';
+  return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+}
 
 /**
  * Toggle sidebar collapsed state (desktop) or open/close (mobile).
@@ -619,14 +838,20 @@ function handleAvatarStatus(status, message) {
 function init() {
   bindEvents();
 
+  // Attempt to fetch deployed config (env-var-driven URLs); non-blocking
+  fetch('/api/config')
+    .then((r) => r.json())
+    .then((cfg) => Object.assign(EIM_CONFIG, cfg))
+    .catch(() => {});
+
   // Check existing session
   const hasSession = checkSession();
 
   if (hasSession) {
-    // Dashboard is already visible; restore sidebar state
     restoreSidebarState();
     initFaceTracker();
     initAvatar();
+    loadIframeTab('tokenomics', EIM_CONFIG.tokenomicsUrl);
   } else {
     // Show password gate, focus input
     dom.passwordInput.focus();

@@ -26,6 +26,10 @@ ACCESS_PASSWORD_HASH = "placeholder-change-me-set-real-hash-before-deploy"
 TAVUS_API_KEY = "f51d29d37b154a1885294f62b7e43007"
 TAVUS_PERSONA_ID = ""
 TAVUS_REPLICA_ID = ""
+TOKENOMICS_URL = "https://tokenomics-dashboard-xxxxx-uc.a.run.app"
+MASTER_CONTROL_URL = "https://master-control-xxxxx-uc.a.run.app"
+SHERYL_URL = "https://sheryl-agent-xxxxx-uc.a.run.app"
+SELF_REMEDIATION_URL = "https://self-remediation-xxxxx-uc.a.run.app"
 
 # ── Limits ────────────────────────────────────────────────────────────────────
 [limits]

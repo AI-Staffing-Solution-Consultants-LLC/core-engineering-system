@@ -197,125 +197,69 @@
           </div>
 
           <div class="tab-content-wrapper">
-            <!-- Tokenomics Panel -->
+            <!-- Tokenomics Panel — iframe dashboard embed -->
             <div class="tab-panel active" role="tabpanel" id="tokenomics-tab" aria-labelledby="tab-tokenomics">
-              <div class="tab-panel-content">
-                <div class="metric-grid">
-                  <div class="metric">
-                    <div class="metric-label">Total Supply</div>
-                    <div class="metric-value">1,000,000</div>
-                    <div class="metric-change up">Fully minted</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Circulating</div>
-                    <div class="metric-value">847,230</div>
-                    <div class="metric-change up">+2.3%</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Staked</div>
-                    <div class="metric-value">512,400</div>
-                    <div class="metric-change up">61.2% APR</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Treasury</div>
-                    <div class="metric-value">152,770</div>
-                    <div class="metric-change down">15.3% of supply</div>
+              <div class="dashboard-iframe-container" id="tokenomics-iframe-container">
+                <div class="iframe-fallback hidden" id="tokenomics-fallback" aria-hidden="true">
+                  <div class="iframe-fallback-card">
+                    <div class="iframe-fallback-icon" aria-hidden="true">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
+                    </div>
+                    <p class="iframe-fallback-title">Tokenomics Dashboard requires popup</p>
+                    <a class="iframe-fallback-link" id="tokenomics-fallback-link" href="#" target="_blank" rel="noopener noreferrer">Open in new tab</a>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Master Control Panel -->
+            <!-- Master Control Panel — iframe embed -->
             <div class="tab-panel" role="tabpanel" id="mastercontrol-tab" aria-labelledby="tab-mastercontrol">
-              <div class="tab-panel-content">
-                <div class="card">
-                  <div class="card-header">
-                    <span class="card-title">System Operations</span>
-                    <span class="card-badge">Ready</span>
-                  </div>
-                  <div class="card-body">
-                    <p>Master control panel provides direct access to core system orchestration functions. Use with caution.</p>
-                  </div>
-                </div>
-                <div class="card">
-                  <div class="card-header">
-                    <span class="card-title">Active Workflows</span>
-                    <span class="card-badge">3 running</span>
-                  </div>
-                  <div class="card-body">
-                    <p>Monitor and manage active agent workflows, deployment pipelines, and infrastructure operations.</p>
+              <div class="dashboard-iframe-container" id="mastercontrol-iframe-container">
+                <div class="iframe-fallback hidden" id="mastercontrol-fallback" aria-hidden="true">
+                  <div class="iframe-fallback-card">
+                    <div class="iframe-fallback-icon" aria-hidden="true">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
+                    </div>
+                    <p class="iframe-fallback-title">Master Control Panel requires popup</p>
+                    <a class="iframe-fallback-link" id="mastercontrol-fallback-link" href="#" target="_blank" rel="noopener noreferrer">Open in new tab</a>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Telemetry Panel -->
+            <!-- Telemetry Panel — live Mesh service status -->
             <div class="tab-panel" role="tabpanel" id="telemetry-tab" aria-labelledby="tab-telemetry">
               <div class="tab-panel-content">
-                <div class="metric-grid">
-                  <div class="metric">
-                    <div class="metric-label">CPU Load</div>
-                    <div class="metric-value">43%</div>
-                    <div class="metric-change up">Avg 5m</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Memory</div>
-                    <div class="metric-value">2.8 GB</div>
-                    <div class="metric-change up">of 8 GB</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Requests/min</div>
-                    <div class="metric-value">1,247</div>
-                    <div class="metric-change up">±12%</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">P99 Latency</div>
-                    <div class="metric-value">142ms</div>
-                    <div class="metric-change down">-8ms</div>
+                <div class="service-grid" id="service-grid">
+                  <div class="service-card service-card-loading" id="service-card-placeholder">
+                    <div class="service-card-header">
+                      <span class="service-card-name">Loading telemetry…</span>
+                    </div>
+                    <div class="service-card-body">
+                      <div class="service-card-spinner" aria-hidden="true"></div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Agent Responses Panel -->
+            <!-- Agent Responses Panel — live Sheryl data -->
             <div class="tab-panel" role="tabpanel" id="responses-tab" aria-labelledby="tab-responses">
               <div class="tab-panel-content">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>Timestamp</th>
-                      <th>Agent</th>
-                      <th>Action</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td class="text-mono">2026-07-28 14:32:10</td>
-                      <td>Control Loop A</td>
-                      <td>Hypothesis formed</td>
-                      <td><span class="text-accent">OK</span></td>
-                    </tr>
-                    <tr>
-                      <td class="text-mono">2026-07-28 14:32:08</td>
-                      <td>Actuator B</td>
-                      <td>Tool execution completed</td>
-                      <td><span class="text-accent">OK</span></td>
-                    </tr>
-                    <tr>
-                      <td class="text-mono">2026-07-28 14:31:55</td>
-                      <td>Actuator B</td>
-                      <td>Gateway check passed</td>
-                      <td><span class="text-accent">OK</span></td>
-                    </tr>
-                    <tr>
-                      <td class="text-mono">2026-07-28 14:31:50</td>
-                      <td>Control Loop A</td>
-                      <td>RAG corpus loaded</td>
-                      <td><span class="text-accent">OK</span></td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div class="response-cards" id="response-cards">
+                  <div class="response-card response-card-loading" id="response-card-placeholder">
+                    <div class="response-card-header">
+                      <span class="response-card-agent">Loading agent responses…</span>
+                    </div>
+                    <div class="response-card-body">
+                      <div class="response-card-spinner" aria-hidden="true"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
