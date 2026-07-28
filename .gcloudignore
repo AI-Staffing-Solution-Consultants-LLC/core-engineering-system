@@ -1,0 +1,70 @@
+# GCP Cloud Run source deploy exclusions
+# Service directories intentionally kept for deployment
+
+# Git
+.git/
+.gitignore
+
+# Secrets (never upload)
+*.pem
+*.key
+service-account.json
+.env
+.env.*
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+.venv/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Terraform state
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.lock.hcl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ledger volumes
+ledger-*/
+
+# Test / dev / docs
+.test/
+tests/
+rag/
+public/
+docs/
+.coveragerc
+.conftest.py
+evidence/
+.omo/
+
+# Agent tooling
+.agents/
+.codegraph/
+.opencode/
+.superpowers/
+.wrangler/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Miscellaneous dev artifacts
+manifest.json
+manifest_factory.py.txt
+package.json
+wrangler.toml
+cloudbuild.yaml
+.infisical.json
+infisical_vault_sync.sh
