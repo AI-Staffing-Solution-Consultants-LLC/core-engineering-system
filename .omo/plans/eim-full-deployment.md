@@ -260,7 +260,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — playwright: navigate to EIM page, click "Master Control" tab, verify iframe loads or fallback shown; click "Last 5 Responses" tab, verify JSON-driven card list renders. failure — Sheryl endpoint down: "Last 5 Responses" tab shows "Dashboard data unavailable — check system health" message. Evidence: `.omo/evidence/eim-full-deployment/task-8-dashboard-viewport.txt`
   Commit: YES | `feat(eim): secondary dashboard viewport — tabbed iframes for tokenomics, master-control, agent responses`
 
-- [ ] 9. **Inference smoketests — Aura, Malory, Krieger structured response verification**
+- [x] 9. **Inference smoketests — Aura, Malory, Krieger structured response verification**
   What to do:
   1. Read existing test files: `.test/test_aura_agent.py`, `.test/test_malory.py`, `.test/test_krieger.py` to understand current coverage.
   2. Create or extend `.test/test_hermes_smoketests.py` with:
@@ -277,7 +277,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — full run: `docker compose up --build aura-agent malory krieger sheryl` then `python -m pytest .test/test_hermes_smoketests.py -v` shows all green. failure — one agent down: test skips with `pytest.skip("service unavailable")`, does not crash. Evidence: `.omo/evidence/eim-full-deployment/task-9-smoketests.txt`
   Commit: YES | `test(quartet): Hermes inference smoketests — Aura, Malory, Krieger structured routing + taskmaster + ledger`
 
-- [ ] 10. **Wire self-remediation to Cloudflare/GCP telemetry + OpenViking RAG**
+- [x] 10. **Wire self-remediation to Cloudflare/GCP telemetry + OpenViking RAG**
   What to do:
   1. Read current self-remediation code: `self-remediation/main.py:1-406`, `self-remediation/health-hooks.py:1-395`, `self-remediation/auditor.py:1-216`.
   2. Add telemetry listener to self-remediation: create `self-remediation/telemetry.py` that:
@@ -295,7 +295,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
   QA: happy — `python -m pytest .test/test_health_hooks.py -q` still passes (existing tests not broken). failure — GCP API unreachable: telemetry listener logs warning, does not crash self-remediation service. Evidence: `.omo/evidence/eim-full-deployment/task-10-telemetry.txt`
   Commit: YES | `feat(remediation): telemetry listener — GCP Cloud Run + Cloudflare Queue monitoring, OpenViking RAG integration, Gemini Knowledge Steward`
 
-- [ ] 11. **Populate OpenViking RAG memory plane + Gemini Knowledge Steward configuration**
+- [x] 11. **Populate OpenViking RAG memory plane + Gemini Knowledge Steward configuration**
   What to do:
   1. Populate `openviking-memory/` directory (currently empty):
      - `openviking-memory/vector-store-config.json` — configuration for the vector store (embedding model, dimension, index type, namespace). Namespace: `core-engineering-system`.

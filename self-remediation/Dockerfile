@@ -13,10 +13,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code (main.py, auditor.py, health-hooks.py, and src/ directory for ledger)
+# Copy application code (main.py, auditor.py, health-hooks.py, telemetry, steward, RAG, and src/ directory for ledger)
 COPY main.py .
 COPY auditor.py .
 COPY health-hooks.py .
+COPY telemetry.py .
+COPY knowledge_steward.py .
+COPY rag_connector.py .
 COPY --chown=coreengine:coreengine src/ ./src/
 
 # Create ledger directory

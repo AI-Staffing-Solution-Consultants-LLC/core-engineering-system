@@ -1,0 +1,60 @@
+=== Task 10: Self-Remediation Telemetry, RAG, and Gemini Integration ===
+Completed: 2026-07-28
+
+Files Created:
+  self-remediation/telemetry.py        — TelemetryListener (GCP/Cloudflare polling)
+  self-remediation/knowledge_steward.py — GeminiKnowledgeSteward (AI diagnosis)
+  self-remediation/rag_connector.py    — OpenVikingRAG (keyword RAG retrieval)
+
+Files Modified:
+  self-remediation/main.py             — Integrated TelemetryListener, GeminiKnowledgeSteward, OpenVikingRAG
+  self-remediation/requirements.txt    — Added google-generativeai, google-cloud-run, google-cloud-monitoring
+  self-remediation/Dockerfile          — Added COPY for new module files
+
+Verification:
+  [PASS] telemetry.py compiles (python3 -c py_compile)
+  [PASS] knowledge_steward.py compiles (python3 -c py_compile)
+  [PASS] rag_connector.py compiles (python3 -c py_compile)
+  [PASS] main.py compiles (python3 -c py_compile)
+  [PASS] TelemetryListener import: from telemetry import TelemetryListener
+  [PASS] GeminiKnowledgeSteward import: graceful stub when GEMINI_API_KEY missing
+  [PASS] OpenVikingRAG import: corpus path resolved, query returns docs (score-based)
+  [PASS] ENABLE_TELEMETRY=true: listener configured (project=aissc-core-engine-self-dep, region=us-central1, interval=60s)
+  [PASS] ENABLE_TELEMETRY=false (default): listener is None
+  [PASS] All 10 endpoints present: healthz, remediate, health-check, plan, diagnose, audit/check, audit/report, audit/findings, ledger, index
+  [PASS] Terraform validates (terraform validate)
+  [PASS] Docker compose parses (docker compose config --quiet)
+  [PASS] RAG query: "Cloud Run service not Ready" returns SOP-001 (score=15), SOP-002 (score=7)
+  [PASS] Knowledge Steward stub: returns {diagnosis: "Knowledge Steward unavailable", confidence: 0.0}
+  [PASS] _execute_step remains stubbed (no auto-execution)
+  [PASS] Existing endpoints untouched: /healthz, /remediate, /health-check, /ledger, /audit/*
+  [PASS] Ledger entries: plan_constructed, diagnosis_complete, telemetry_anomaly (in telemetry.py)
+  [PASS] No files modified outside self-remediation/
+
+Module Details:
+
+telemetry.py:
+  - class TelemetryListener(project, region, polling_interval=60, ledger_writer=None)
+  - start() → background daemon thread, _poll_gcp() every polling_interval seconds
+  - _poll_gcp() → subprocess.run('gcloud run services list --format=json'), checks conditions
+  - _poll_cloudflare() → stub placeholder (CF_REMEDIATION_QUEUE env var)
+  - stop() → signals thread, joins
+  - _write_anomaly() → writes to LedgerWriter as type: "telemetry_anomaly"
+  - Graceful: handles FileNotFoundError (no gcloud), TimeoutExpired, JSONDecodeError, subprocess errors
+
+knowledge_steward.py:
+  - class GeminiKnowledgeSteward()
+  - analyze(anomaly_report, rag_context=None) → {diagnosis, recommended_action, confidence}
+  - Uses google.generativeai with gemini-2.0-flash model
+  - API key from GEMINI_API_KEY env var
+  - Prompt: system prompt + anomaly data + RAG context + JSON output instruction
+  - Stub: GEMINI_API_KEY missing → {"diagnosis": "Knowledge Steward unavailable", ...}
+  - Graceful: API key missing, import error, API call failure all → stub response
+
+rag_connector.py:
+  - class OpenVikingRAG(corpus_path=None)
+  - query(anomaly_description, top_k=3) → list[dict] with title, path, content, score
+  - Reads *.md from rag/docs/openviking/ directory
+  - Tokenizes query, filters stop words, scores by keyword frequency
+  - Falls back to [] if corpus directory doesn't exist
+  - Auto-resolves path: env var → well-known relative paths → cwd
