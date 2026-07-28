@@ -1,0 +1,88 @@
+================================================================================
+TASK 13: FULL CLOUD RUN MESH DEPLOYMENT — BLOCKED
+================================================================================
+Timestamp:  2026-07-28T22:00:49Z
+Agent:      DevOps Automator (Sisyphus-Junior)
+Plan Ref:   .omo/plans/eim-full-deployment.md Task 13
+
+STATUS: BLOCKED — GCloud Authentication Expired
+================================================
+
+Root Cause:
+-----------
+Both user account credentials AND application-default-credentials (ADC)
+have expired and require interactive browser re-authentication.
+
+Account:   josh@ai-staffing-solutions-consultants.com
+Token DB:  ~/.config/gcloud/access_tokens.db (expired 2026-07-23)
+ADC File:  ~/.config/gcloud/application_default_credentials.json (refresh failed)
+Auth Type: authorized_user (OAuth 2.0) — requires browser-based re-auth
+
+Error:
+  ERROR: (gcloud.config.set) There was a problem refreshing your current
+  auth tokens: Reauthentication failed. cannot prompt during
+  non-interactive execution.
+
+Attempted Mitigations:
+  - gcloud auth print-access-token → FAILED (reauthentication required)
+  - gcloud auth application-default print-access-token → FAILED
+  - gcloud auth login --no-launch-browser → FAILED (URL generated but
+    requires browser verification code input)
+  - Searched for service account key files (GCP_SERVICE_ACCOUNT_KEY_BASE64,
+    GOOGLE_APPLICATION_CREDENTIALS, *.json keys) → NONE FOUND
+  - Infisical credentials not available in environment
+  - No gcloud CLI service-account activation possible without key file
+
+Pre-Deployment Readiness (Verified):
+  - ✅ Project: aissc-core-engine-self-dep (configured)
+  - ✅ Region: us-central1
+  - ✅ Branch: production
+  - ✅ deploy-gcr.sh: exists, executable, 130 lines, verified
+  - ✅ Docker: running v29.1.3
+  - ✅ Evidence directory: .omo/evidence/eim-full-deployment/ exists
+  - ✅ Service source directories present (track-a, track-b, executive-quartet/*,
+       self-remediation, telegram-bridge)
+  - ❌ GCloud auth: EXPIRED
+
+Remediation Required (User Action):
+=====================================
+
+Run the following in your terminal:
+
+    gcloud auth login
+
+This will open a browser window. Complete the sign-in with:
+    josh@ai-staffing-solutions-consultants.com
+
+Then also refresh ADC:
+
+    gcloud auth application-default login
+
+After successful re-authentication, verify:
+
+    gcloud config set project aissc-core-engine-self-dep
+    gcloud config set run/region us-central1
+    gcloud auth print-access-token    # Should print a valid token
+
+Then the agent can resume deployment by running:
+
+    bash deploy-gcr.sh 2>&1 | tee deploy-output.log
+
+Deployment Plan (ready to execute once auth is restored):
+==========================================================
+1. Enable APIs: run.googleapis.com, cloudbuild.googleapis.com
+2. Deploy track-a-control-loop   (./track-a, port 8080, internal)
+3. Deploy track-b-actuator       (./track-b, port 8081, internal)
+4. Deploy sheryl-agent           (./executive-quartet/sheryl, port 8083, internal)
+5. Deploy aura-agent             (./executive-quartet/aura, port 8084, internal)
+6. Deploy malory-agent           (./executive-quartet/malory, port 8085, internal)
+7. Deploy krieger-agent          (./executive-quartet/krieger, port 8086, internal)
+8. Deploy self-remediation       (./self-remediation, port 8087, internal)
+9. Deploy telegram-bridge        (./telegram-bridge, port 8088, PUBLIC)
+10. Verify with: gcloud run services list --project=aissc-core-engine-self-dep --region=us-central1
+
+All services use: cpu=1, memory=512Mi, min=0, max=1
+Service account: core-engine-worker@aissc-core-engine-self-dep.iam.gserviceaccount.com
+Only telegram-bridge: --allow-unauthenticated
+All others: --ingress internal
+================================================================================
