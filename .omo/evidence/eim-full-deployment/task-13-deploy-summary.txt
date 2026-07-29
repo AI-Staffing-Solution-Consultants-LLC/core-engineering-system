@@ -1,0 +1,67 @@
+================================================================================
+TASK 13: Cloud Run Mesh Deployment — Deployment Summary
+================================================================================
+Date: 2026-07-28
+Project: aissc-core-engine-self-dep
+Region: us-central1
+Deploy Script: deploy-gcr.sh (171 lines, staged shared dependencies pattern)
+
+ALL 8 SERVICES DEPLOYED SUCCESSFULLY (READY=True):
+
+1. track-a-control-loop  (port 8080, internal)
+   URL: https://track-a-control-loop-wp6tii27hq-uc.a.run.app
+
+2. track-b-actuator      (port 8081, internal)
+   URL: https://track-b-actuator-wp6tii27hq-uc.a.run.app
+
+3. sheryl-agent          (port 8083, internal)
+   URL: https://sheryl-agent-wp6tii27hq-uc.a.run.app
+
+4. aura-agent            (port 8084, internal)
+   URL: https://aura-agent-wp6tii27hq-uc.a.run.app
+
+5. malory-agent          (port 8085, internal)
+   URL: https://malory-agent-wp6tii27hq-uc.a.run.app
+
+6. krieger-agent         (port 8086, internal)
+   URL: https://krieger-agent-wp6tii27hq-uc.a.run.app
+
+7. self-remediation      (port 8087, internal)
+   URL: https://self-remediation-wp6tii27hq-uc.a.run.app
+
+8. telegram-bridge       (port 8088, PUBLIC)
+   URL: https://telegram-bridge-wp6tii27hq-uc.a.run.app
+
+================================================================================
+CONFIGURATION:
+  - CPU: 1, Memory: 512Mi, Min instances: 0, Max instances: 1 (free-tier)
+  - Service account: core-engine-worker@aissc-core-engine-self-dep.iam.gserviceaccount.com
+  - All services use --ingress internal (except telegram-bridge)
+  - All services use explicit --port flag matching hardcoded Flask port
+  - Telegram-bridge deployed with --allow-unauthenticated (IAM policy blocked by org policy)
+
+================================================================================
+FIXES APPLIED DURING DEPLOYMENT:
+  1. Build context: Dockerfiles used repo-relative COPY paths but gcloud uses
+     service dir as build context. Fixed by pre-staging shared files into each
+     service directory before deploy (stage_shared_deps/cleanup_shared_deps).
+  2. PORT mismatch: All services hardcode ports (8080-8088). Fixed by adding
+     explicit --port flag to each gcloud run deploy command.
+  3. Missing COPY in Dockerfiles: malory and krieger Dockerfiles didn't COPY
+     memory_client.py — added COPY memory_client.py to both.
+  4. sheryl Dockerfile: Changed from COPY flat ledger.py to COPY src/ ./src/
+     (preserving Python package structure for from src.ledger import).
+  5. self-remediation requirements.txt: google-cloud-monitoring==2.25.1 doesn't
+     exist — changed to 2.25.0.
+
+================================================================================
+KNOWN ISSUE:
+  - telegram-bridge IAM: Org policy (iam.allowedPolicyMemberDomains) blocks
+    allUsers binding. Service is deployed but NOT publicly accessible.
+    Resolution requires org admin to allow the domain or use a different
+    authentication model.
+
+================================================================================
+STALE SERVICES (from previous deployments, NOT part of this mesh):
+  - aura-quartet, sheryl-quartet, malory-quartet, krieger-quartet (all False)
+  - inference-tokenomics (unrelated service, True)

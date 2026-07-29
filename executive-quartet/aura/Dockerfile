@@ -8,11 +8,11 @@ RUN groupadd -r coreengine && useradd -r -g coreengine -d /app coreengine
 
 WORKDIR /app
 
-COPY executive-quartet/aura/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY executive-quartet/aura/main.py .
-COPY executive-quartet/memory_client.py .
+COPY main.py .
+COPY memory_client.py .
 
 RUN mkdir -p /var/log/ledger && \
     chown -R coreengine:coreengine /var/log/ledger

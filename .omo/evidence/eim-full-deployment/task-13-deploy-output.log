@@ -1,0 +1,162 @@
+=== Enabling Cloud Run + Cloud Build APIs ===
+Operation "operations/acat.p2-7825647401-18e3273e-9423-4486-9169-2c21a4f778e2" finished successfully.
+
+##############################################################################
+#  PHASE 1: Core C-P-A Services
+##############################################################################
+
+==============================================================================
+  DEPLOYING: track-a-control-loop  (source: ./track-a, port: 8080)
+==============================================================================
+Building using Dockerfile and deploying container to Cloud Run service [[1mtrack-a-control-loop[m] in project [[1maissc-core-engine-self-dep[m] region [[1mus-central1[m]
+Building and deploying...
+Validating configuration...............done
+Uploading sources................done
+Building Container.........................................................................................................................................................................................................................................................................................................................................................................done
+Creating Revision...........................................................................done
+Routing traffic.....done
+Done.
+Service [[1mtrack-a-control-loop[m] revision [[1mtrack-a-control-loop-00012-lfc[m] has been deployed and is serving [1m100[m percent of traffic.
+Service URL: [1mhttps://track-a-control-loop-7825647401.us-central1.run.app[m
+>>> track-a-control-loop deployed successfully.
+
+==============================================================================
+  DEPLOYING: track-b-actuator  (source: ./track-b, port: 8081)
+==============================================================================
+Building using Dockerfile and deploying container to Cloud Run service [[1mtrack-b-actuator[m] in project [[1maissc-core-engine-self-dep[m] region [[1mus-central1[m]
+Building and deploying...
+Validating configuration.........done
+Uploading sources.................done
+Building Container.................................................................................................................................................................................................................................................................................................................................................done
+Creating Revision.................................................................................................................................................................................................................................................................done
+Routing traffic.....done
+Done.
+Service [[1mtrack-b-actuator[m] revision [[1mtrack-b-actuator-00012-6ln[m] has been deployed and is serving [1m100[m percent of traffic.
+Service URL: [1mhttps://track-b-actuator-7825647401.us-central1.run.app[m
+>>> track-b-actuator deployed successfully.
+
+##############################################################################
+#  PHASE 2: Executive Quartet
+##############################################################################
+
+==============================================================================
+  DEPLOYING: sheryl-agent  (source: ./executive-quartet/sheryl, port: 8083)
+==============================================================================
+Building using Dockerfile and deploying container to Cloud Run service [[1msheryl-agent[m] in project [[1maissc-core-engine-self-dep[m] region [[1mus-central1[m]
+Building and deploying...
+Validating configuration.........done
+Uploading sources.................done
+Building Container............................................................................................................................................................................................................................................................................................................................................................................................................................done
+Creating Revision...............................................................................................................................done
+Routing traffic.....done
+Done.
+Service [[1msheryl-agent[m] revision [[1msheryl-agent-00006-kf7[m] has been deployed and is serving [1m100[m percent of traffic.
+Service URL: [1mhttps://sheryl-agent-7825647401.us-central1.run.app[m
+>>> sheryl-agent deployed successfully.
+
+==============================================================================
+  DEPLOYING: aura-agent  (source: ./executive-quartet/aura, port: 8084)
+==============================================================================
+Building using Dockerfile and deploying container to Cloud Run service [[1maura-agent[m] in project [[1maissc-core-engine-self-dep[m] region [[1mus-central1[m]
+Building and deploying...
+Validating configuration.........done
+Uploading sources................done
+Building Container.................................................................................................................................................................................................................................................................................................................................................................................done
+Creating Revision............................................................................................................................................................................................................................................................................................done
+Routing traffic.....done
+Done.
+Service [[1maura-agent[m] revision [[1maura-agent-00004-cc9[m] has been deployed and is serving [1m100[m percent of traffic.
+Service URL: [1mhttps://aura-agent-7825647401.us-central1.run.app[m
+>>> aura-agent deployed successfully.
+
+==============================================================================
+  DEPLOYING: malory-agent  (source: ./executive-quartet/malory, port: 8085)
+==============================================================================
+Building using Dockerfile and deploying container to Cloud Run service [[1mmalory-agent[m] in project [[1maissc-core-engine-self-dep[m] region [[1mus-central1[m]
+Building and deploying...
+Validating configuration..........done
+Uploading sources...............done
+Building Container....................................................................................................................................................................................................................................................................................................................................................................................................done
+Creating Revision................................................................................................................................................................................................................................................................................done
+Routing traffic.....done
+Done.
+Service [[1mmalory-agent[m] revision [[1mmalory-agent-00004-5ds[m] has been deployed and is serving [1m100[m percent of traffic.
+Service URL: [1mhttps://malory-agent-7825647401.us-central1.run.app[m
+>>> malory-agent deployed successfully.
+
+==============================================================================
+  DEPLOYING: krieger-agent  (source: ./executive-quartet/krieger, port: 8086)
+==============================================================================
+Building using Dockerfile and deploying container to Cloud Run service [[1mkrieger-agent[m] in project [[1maissc-core-engine-self-dep[m] region [[1mus-central1[m]
+Building and deploying...
+Validating configuration........done
+Uploading sources................done
+Building Container................................................................................................................................................................................................................................................................................................done
+Creating Revision...............................................................................................................................................................................................................................................................................................................................................................................................................done
+Routing traffic.....done
+Done.
+Service [[1mkrieger-agent[m] revision [[1mkrieger-agent-00002-7dq[m] has been deployed and is serving [1m100[m percent of traffic.
+Service URL: [1mhttps://krieger-agent-7825647401.us-central1.run.app[m
+>>> krieger-agent deployed successfully.
+
+##############################################################################
+#  PHASE 3: Self-Remediation
+##############################################################################
+
+==============================================================================
+  DEPLOYING: self-remediation  (source: ./self-remediation, port: 8087)
+==============================================================================
+Building using Dockerfile and deploying container to Cloud Run service [[1mself-remediation[m] in project [[1maissc-core-engine-self-dep[m] region [[1mus-central1[m]
+Building and deploying...
+Validating configuration...........done
+Uploading sources....................done
+Building Container.......................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................done
+Creating Revision..................................................................................................................................................................................................................................................................................done
+Routing traffic.....done
+Done.
+Service [[1mself-remediation[m] revision [[1mself-remediation-00002-dqp[m] has been deployed and is serving [1m100[m percent of traffic.
+Service URL: [1mhttps://self-remediation-7825647401.us-central1.run.app[m
+>>> self-remediation deployed successfully.
+
+##############################################################################
+#  PHASE 4: Telegram Bridge (PUBLIC)
+##############################################################################
+
+==============================================================================
+  DEPLOYING: telegram-bridge  (source: ./telegram-bridge, port: 8088)  [PUBLIC]
+==============================================================================
+Building using Dockerfile and deploying container to Cloud Run service [[1mtelegram-bridge[m] in project [[1maissc-core-engine-self-dep[m] region [[1mus-central1[m]
+Building and deploying...
+Validating configuration.........done
+Uploading sources................done
+Building Container..........................................................................................................................................................................................................................................................................................................................................................done
+Setting IAM Policy................warning
+Creating Revision............................................................................................................................................................................................................done
+Routing traffic.....done
+Completed with warnings:
+  Setting IAM policy failed, try "gcloud beta run services add-iam-policy-binding --region=us-central1 --member=allUsers --role=roles/run.invoker telegram-bridge"
+Service [[1mtelegram-bridge[m] revision [[1mtelegram-bridge-00002-rzn[m] has been deployed and is serving [1m100[m percent of traffic.
+Service URL: [1mhttps://telegram-bridge-7825647401.us-central1.run.app[m
+>>> telegram-bridge deployed successfully.
+
+##############################################################################
+#  DEPLOYMENT SUMMARY
+##############################################################################
+
+NAME                  URL                                                   READY
+aura-agent            https://aura-agent-wp6tii27hq-uc.a.run.app            True
+aura-quartet                                                                False
+inference-tokenomics  https://inference-tokenomics-wp6tii27hq-uc.a.run.app  True
+krieger-agent         https://krieger-agent-wp6tii27hq-uc.a.run.app         True
+krieger-quartet                                                             False
+malory-agent          https://malory-agent-wp6tii27hq-uc.a.run.app          True
+malory-quartet                                                              False
+self-remediation      https://self-remediation-wp6tii27hq-uc.a.run.app      True
+sheryl-agent          https://sheryl-agent-wp6tii27hq-uc.a.run.app          True
+sheryl-quartet                                                              False
+telegram-bridge       https://telegram-bridge-wp6tii27hq-uc.a.run.app       True
+track-a-control-loop  https://track-a-control-loop-wp6tii27hq-uc.a.run.app  True
+track-b-actuator      https://track-b-actuator-wp6tii27hq-uc.a.run.app      True
+
+All 8 services deployed to aissc-core-engine-self-dep (us-central1).
+Only telegram-bridge is publicly accessible.

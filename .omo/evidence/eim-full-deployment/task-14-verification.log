@@ -1,0 +1,146 @@
+=== EIM FULL DEPLOYMENT — TASK 14 VERIFICATION LOG ===
+Timestamp: 2026-07-28T23:46:00Z
+Executor: Sisyphus-Junior (DevOps Automator)
+Project: aissc-core-engine-self-dep / us-central1
+Auth: gcloud identity token (Bearer, via gcloud auth print-identity-token)
+==========================================================================
+
+SUMMARY:
+  All 8 Cloud Run services are DEPLOYED and HAVE READY REVISIONS (verified
+  via `gcloud run services list`). All are REACHABLE via HTTPS (TLS handshake
+  succeeds, Cloud Run GFE routes traffic). However, only telegram-bridge
+  responds with application-level endpoints — all other 7 services return
+  Flask-level 404 on every tested path (/, /healthz, /plan, /allowlist, etc.),
+  indicating the deployed container images lack the application routes present
+  in the current source code.
+
+  The /healthz endpoint specifically returns a Google-styled 404 (from the
+  Cloud Run GFE, not from Flask) on ALL services — including telegram-bridge
+  which otherwise has working endpoints. This strongly suggests Cloud Run
+  intercepts the /healthz path at the proxy level.
+
+  EIM Web UI: DNS NXDOMAIN — the domain
+  cem.ai-staffing-solutions-consultants.online does not resolve. Either the
+  domain registration, DNS configuration, or Cloudflare Pages deployment has
+  not been completed.
+
+==========================================================================
+
+=== SERVICE HEALTH CHECK TABLE ===
+
+Service Name                URL                                                          HTTP  Time(s)   Health Status          Notes
+──────────────────────────  ───────────────────────────────────────────────────────────  ────  ───────   ────────────────────   ─────────────────────────────────────────────
+track-a-control-loop        https://track-a-control-loop-wp6tii27hq-uc.a.run.app/healthz  404   0.4525    FAIL — /healthz 404    Google GFE 404; Flask 404 on /, /plan
+track-b-actuator            https://track-b-actuator-wp6tii27hq-uc.a.run.app/healthz      404   0.4541    FAIL — /healthz 404    Google GFE 404; Flask 404 on /, /allowlist
+sheryl-agent                https://sheryl-agent-wp6tii27hq-uc.a.run.app/healthz          404   1.3203    FAIL — /healthz 404    Google GFE 404; Flask 404 on /, /dashboard/*
+aura-agent                  https://aura-agent-wp6tii27hq-uc.a.run.app/healthz            404   1.2486    FAIL — /healthz 404    Google GFE 404; Flask 404 on /, /consistency-check
+malory-agent                https://malory-agent-wp6tii27hq-uc.a.run.app/healthz          404   0.9341    FAIL — /healthz 404    Google GFE 404; Flask 404 on /
+krieger-agent               https://krieger-agent-wp6tii27hq-uc.a.run.app/healthz         404   1.4686    FAIL — /healthz 404    Google GFE 404; Flask 404 on /
+self-remediation            https://self-remediation-wp6tii27hq-uc.a.run.app/healthz      404   1.3476    FAIL — /healthz 404    Google GFE 404; Flask 404 on /, /health-check
+telegram-bridge             https://telegram-bridge-wp6tii27hq-uc.a.run.app/healthz       404   0.4086    FAIL — /healthz 404    Google GFE 404 (root: 200, /status: 503)
+
+==========================================================================
+
+=== ADDITIONAL ENDPOINT CHECKS ===
+
+telegram-bridge GET / (root)
+  HTTP 200 | 0.739s | {"service":"telegram-bridge","version":"0.1.0",
+  "endpoints":{"/healthz":"GET …","/send":"POST …","/status":"GET …","/webhook":"POST …"}}
+  → PARTIAL SUCCESS: Root responds with JSON endpoint map. Application is running.
+
+telegram-bridge GET /status
+  HTTP 503 | 0.779s | {"reason":"TELEGRAM_BOT_TOKEN not set","status":"disconnected"}
+  → EXPECTED: Bot token not configured. Service logic is operational.
+
+telegram-bridge POST /send
+  HTTP 502 | 1.061s | {"error":"400 Client Error: Bad Request … /sendMessage"}
+  → PASS-THROUGH: Outbound call to Telegram API fails (bad token) but the
+    bridge itself is functioning as a proxy. Expected behavior.
+
+Self-remediation POST /health-check
+  HTTP 404 | 1.343s | Flask "Page not found"
+  → FAIL: /health-check endpoint not available. Container image missing route.
+
+Sheryl GET /dashboard/last-responses
+  HTTP 404 | 0.805s | Flask "Page not found"
+  → FAIL: /dashboard/last-responses endpoint not available.
+
+Aura POST /consistency-check
+  HTTP 404 | 0.944s | Flask "Page not found"
+  → FAIL: /consistency-check endpoint not available.
+
+EIM Web UI https://cem.ai-staffing-solutions-consultants.online/
+  → FAIL: DNS NXDOMAIN — domain does not resolve.
+  `host cem.ai-staffing-solutions-consultants.online` → "not found: 3(NXDOMAIN)"
+  Root cause: Domain registration, DNS configuration, or Cloudflare Pages
+  deployment incomplete.
+
+==========================================================================
+
+=== ROOT CAUSE ANALYSIS ===
+
+1. APPLICATION ROUTES MISSING (7 of 8 services)
+   - All services except telegram-bridge return Flask 404 on every tested path
+     (/, /healthz, /plan, /allowlist, /dashboard/*, /health-check, etc.).
+   - The Flask dev server IS running (distinctive werkzeug 404 HTML vs Google
+     GFE 404). The services are not crashing — they just have zero or near-zero
+     routes defined in their deployed images.
+   - Likely cause: The Docker images were built from earlier scaffolding code
+     that had minimal Flask templates without the route definitions present
+     in the current source code. The images need to be rebuilt and redeployed
+     from the current track-a/main.py, track-b/main.py, and agent source files.
+
+2. /healthz INTERCEPTED BY CLOUD RUN GFE (all 8 services)
+   - Even telegram-bridge (which has working routes) returns a Google-styled
+     404 on /healthz — different from the Flask 404 on other missing routes.
+   - This indicates the Cloud Run Google Front End (GFE) is intercepting
+     requests to /healthz before they reach the container.
+   - Recommendation: Use an alternative health check path (e.g., /health,
+     /ping, or use the root / endpoint) or configure Cloud Run's health
+     check probe to use a TCP check instead of HTTP path-based check.
+
+3. EIM WEB UI — DNS NOT CONFIGURED
+   - The domain cem.ai-staffing-solutions-consultants.online does not resolve.
+   - Requires: domain registration + DNS records pointing to Cloudflare Pages
+     or the target hosting platform.
+
+==========================================================================
+
+=== GCLOUD SERVICES LIST CONFIRMATION ===
+
+All 8 services show in `gcloud run services list` with ready revisions:
+
+  NAME                  READY REVISION              STATUS
+  ────────────────────  ──────────────────────────  ──────
+  aura-agent            aura-agent-00004-cc9         Ready
+  krieger-agent         krieger-agent-00002-7dq      Ready
+  malory-agent          malory-agent-00004-5ds       Ready
+  self-remediation      self-remediation-00002-dqp   Ready
+  sheryl-agent          sheryl-agent-00006-kf7       Ready
+  telegram-bridge       telegram-bridge-00002-rzn    Ready
+  track-a-control-loop  track-a-control-loop-00012-lfc Ready
+  track-b-actuator      track-b-actuator-00012-6ln   Ready
+
+  3 additional services exist but are NOT part of this health check:
+  - aura-quartet, krieger-quartet, malory-quartet, sheryl-quartet
+    (all have "Image 'placeholder-change-me' not found" — deployment pending)
+  - inference-tokenomics (already deployed separately)
+
+==========================================================================
+
+=== VERDICT ===
+
+  Deployment: PARTIAL (8/8 services deployed, 1/8 with functional endpoints)
+  Health: FAIL (0/8 services pass /healthz check)
+  EIM Web UI: FAIL (DNS NXDOMAIN)
+  Telegram Bridge: PARTIAL (functional but /healthz blocked by GFE)
+
+  NEXT STEPS:
+  1. Rebuild and redeploy 7 service images from current source code
+     (track-a, track-b, sheryl, aura, malory, krieger, self-remediation)
+  2. Configure health checks on an alternate path (e.g., /health or /ping)
+     OR use TCP-based probe to bypass GFE /healthz interception
+  3. Set up DNS for cem.ai-staffing-solutions-consultants.online
+  4. Redeploy quartet services with actual container images
+
+==========================================================================

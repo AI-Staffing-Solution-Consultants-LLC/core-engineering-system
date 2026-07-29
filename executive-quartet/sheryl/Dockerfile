@@ -10,15 +10,15 @@ RUN groupadd -r coreengine && useradd -r -g coreengine -d /app coreengine
 WORKDIR /app
 
 # Install only what's needed — no build tools in runtime
-COPY executive-quartet/sheryl/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy shared libraries first (they live above the sheryl directory)
-COPY src/ledger.py src/ledger.py
-COPY executive-quartet/memory_client.py .
+# Copy shared libraries (pre-staged into this directory by deploy-gcr.sh)
+COPY src/ ./src/
+COPY memory_client.py .
 
 # Copy the service module
-COPY executive-quartet/sheryl/main.py main.py
+COPY main.py .
 
 # Create ledger and RAG directories, set ownership
 RUN mkdir -p /var/log/ledger /rag/docs && \
