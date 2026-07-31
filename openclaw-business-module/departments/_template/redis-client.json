@@ -1,0 +1,12 @@
+{
+  "redis_url": "${REDIS_URL}",
+  "connection": {
+    "timeout_ms": 5000,
+    "retry": 3
+  },
+  "state_keys": {
+    "active_job": "job:active:{id}",
+    "session": "sess:<SLUG>:{id}"
+  },
+  "_protocol": "Protocol A — Redis ping gate before container ONLINE"
+}

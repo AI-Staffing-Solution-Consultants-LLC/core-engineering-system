@@ -1,0 +1,34 @@
+
+=== TASK 5 — Reusable Department Module Template ===
+Completed: Fri Jul 31 05:59 UTC 2026
+Executor: Sisyphus-Junior (Minimal Change Engineer)
+
+## Deliverables
+Created 10 files at `openclaw-business-module/departments/_template/`:
+  Dockerfile, requirements.txt, main.py, agents.json, paperclip-config.json,
+  hermes-gateway.json, redis-client.json, viking-rag.json, .env.example, README.md
+
+## Verification Results (all 17 gates PASS)
+- File existence: 10/10 PASS
+- File count: 10 (ls -A)
+- JSON validity: all 5 JSON files parse successfully
+- coreengine in Dockerfile: 2 occurrences (≥1 PASS)
+- PLACEHOLDER in agents.json: 2 occurrences (≥1 PASS)
+- REDIS_URL in .env.example: 1 (PASS)
+- OPENVIKING_URL in .env.example: 1 (PASS)
+- Protocol A in redis-client.json: 1 (PASS)
+- Protocol B in viking-rag.json: 1 (PASS)
+- No allUsers/roles/owner in Dockerfile: confirmed (negative gate)
+- FROM python:3.12-slim: present (PASS)
+- CMD python -u main.py: present (PASS)
+
+## Template Design Notes
+- agents.json: phase uses JSON number 0 (placeholder); "PLACEHOLDER" appears in agent ID and skill_ref string values
+- redis-client.json: `_protocol` key contains "Protocol A — Redis ping gate before container ONLINE"
+- viking-rag.json: `_protocol` key contains "Protocol B — agents connect to OpenViking by default for hierarchical RAG context"
+- Dockerfile: shell-form CMD for grep compatibility; EXPOSE $PORT; non-root coreengine user
+- main.py: loads all 4 configs at startup, /healthz returns department + slug, no business logic
+- README.md: references canonical ops_architecture.md Section 11 for skill_ref values
+
+## Dependencies Unblocked
+Tasks 6-17 (12 department scaffold instantiations) are now unblocked.
