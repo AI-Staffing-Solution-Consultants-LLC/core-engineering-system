@@ -297,7 +297,7 @@ Wave FINAL (After ALL tasks — parallel reviews):
 
 ### Wave 2 — Template + Phase 1 (Foundation)
 
-- [ ] 5. **Define reusable department module template**
+- [x] 5. **Define reusable department module template**
   What to do: Create `openclaw-business-module/departments/_template/` with the following files (10 total):
   1. `Dockerfile` — Same pattern as `track-a/Dockerfile:1-20`: `FROM python:3.12-slim`, create non-root `coreengine` user, copy requirements.txt + main.py + *.json, expose `$PORT`, `CMD python -u main.py`
   2. `requirements.txt` — `flask==3.1.0` (only dependency for the health-check skeleton; no additional packages)

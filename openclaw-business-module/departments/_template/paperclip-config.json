@@ -1,0 +1,30 @@
+{
+  "workflow_name": "<SLUG>-workflow",
+  "stages": [
+    {
+      "name": "ingest",
+      "agent": "<PRIMARY_AGENT>",
+      "timeout_ms": 30000
+    },
+    {
+      "name": "process",
+      "agent": "<SECONDARY_AGENT>",
+      "timeout_ms": 60000
+    },
+    {
+      "name": "validate",
+      "agent": "<QA_AGENT>",
+      "timeout_ms": 30000
+    },
+    {
+      "name": "output",
+      "agent": "<PRIMARY_AGENT>",
+      "timeout_ms": 15000
+    }
+  ],
+  "routing_rules": [],
+  "retry_policy": {
+    "max_retries": 3,
+    "backoff_ms": 1000
+  }
+}

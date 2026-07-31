@@ -1,0 +1,15 @@
+{
+  "queue_name": "queue.<SLUG>",
+  "inbound_routes": [
+    {
+      "event": "*",
+      "handler": "process_message"
+    }
+  ],
+  "outbound_routes": [],
+  "message_schema": {
+    "event": "string",
+    "payload": "object",
+    "timestamp": "ISO8601"
+  }
+}

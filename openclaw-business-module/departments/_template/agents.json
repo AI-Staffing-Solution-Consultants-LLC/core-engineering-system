@@ -1,0 +1,15 @@
+{
+  "name": "<DEPARTMENT_NAME>",
+  "version": "0.1.0",
+  "department_slug": "<SLUG>",
+  "phase": 0,
+  "agents": [
+    {
+      "id": "<PLACEHOLDER_AGENT_ID>",
+      "skill_ref": "<PLACEHOLDER_SKILL_REF>",
+      "model": "opencode-go/deepseek-v4-pro",
+      "role": "<one-line role description>",
+      "context": "<one-line operational context>"
+    }
+  ]
+}
