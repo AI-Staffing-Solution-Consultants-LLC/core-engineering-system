@@ -16,6 +16,7 @@ For the full C-P-A design rationale, architecture diagram, and deployment walkth
 | `docker-compose.yml` | Spins up both services, mounts `./policy` (ro) and ledger Docker volumes. References `./rag` (host dir), which **does not exist in this repo** and must be created locally — otherwise Track A logs a warning and runs with empty corpus. |
 | `CEM_Update.txt` | One-shot reconciliation manifest (phases of porting into a larger `/AISSC_Cloud_Workspace/`). Treat as a roadmap document, not config. |
 | `agency-agents/` | **Empty placeholder directory.** If a task references files inside it, the user has not populated it yet — don't author files there without asking. |
+| `ai-gateway` skill | Cloudflare AI Gateway context: load user-level `ai-gateway` skill (project wrapper `agency-ai-gateway`). Distilled essentials + ~665KB official docs snapshot in `~/.agents/skills/ai-gateway/references/`. |
 
 ## Hard constraints — do not negotiate
 
