@@ -1,0 +1,44 @@
+Task 3: Create ops_architecture.md
+Status: PASS
+Date: 2026-07-31
+Verified by: atlas (orchestrator, independent verification)
+
+Checks (from plan acceptance criteria):
+- test -f openclaw-business-module/departments/ops_architecture.md  -> PASS (exists)
+- Section "Node Perimeter" (line 11)  -> PASS
+- Section "Container Foundation" (line 33)  -> PASS
+- Section "AgentOS Configuration" (line 74)  -> PASS
+- Section "Paperclip Integration" (line 120)  -> PASS
+- Section "Hermes Event Bus Hooks" (line 169)  -> PASS
+- Section "Redis Persistent State" (line 211)  -> PASS
+- Section "OpenViking RAG & Context" (line 252)  -> PASS
+- Section "Environment Configuration" (line 307)  -> PASS
+- Section "Network & Security" (line 350)  -> PASS
+- Section "File Structure" (line 388)  -> PASS
+- Section "Agent ID → skill_ref Path Mapping Table" (line 431)  -> PASS
+- Mapping table rows = 52 (>= 48 required)  -> PASS
+
+Happy-path greps:
+- "python:3.12-slim" x2  -> PASS
+- "coreengine" x3  -> PASS
+- "queue." x5  -> PASS
+- "REDIS_URL" x4  -> PASS
+- "OPENVIKING_URL" x4  -> PASS
+- "Protocol A" x5  -> PASS
+- "Protocol B" x5  -> PASS
+
+Forbidden-mention review:
+- grep "allUsers|roles/owner|roles/editor" = 3 matches, ALL at lines 369-371 inside
+  Section 9 "Network & Security" documenting the NEVER-use constraint:
+    line 369: "- `allUsers` IAM binding (public access): never, under any circumstance."
+    line 370: "- `roles/owner`: never."
+    line 371: "- `roles/editor`: never."
+  The plan's Task 3 Section 9 REQUIRES stating "no allUsers binding" — these are
+  constraint documentation, not violations. ACCEPTABLE.
+
+Notes: Header is "Agent ID → skill_ref Path Mapping Table" (capital P) — matches plan's
+"Agent ID → skill_ref path mapping table" semantically. Table rows use plain pipe format
+(no backticks around agent IDs) — format difference only, all 50 planned agents present
+plus 2 extras (52 rows).
+
+Evidence: openclaw-business-module/departments/ops_architecture.md (497 lines)
