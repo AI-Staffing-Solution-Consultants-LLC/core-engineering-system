@@ -514,34 +514,34 @@ steps:
         docker build \
           -f executive-quartet/sheryl/Dockerfile \
           -t ${_REPO}/${_SERVICE_SHERYL}:latest \
-          -t ${_REPO}/${_SERVICE_SHERYL}:latest \
           executive-quartet/sheryl
-        echo "[+] Sheryl build complete."
+        docker push ${_REPO}/${_SERVICE_SHERYL}:latest
+        echo "[+] Sheryl build and push complete."
 
         echo "[*] Building Aura (Executive Quartet)..."
         docker build \
           -f executive-quartet/aura/Dockerfile \
           -t ${_REPO}/${_SERVICE_AURA}:latest \
-          -t ${_REPO}/${_SERVICE_AURA}:latest \
           executive-quartet/aura
-        echo "[+] Aura build complete."
+        docker push ${_REPO}/${_SERVICE_AURA}:latest
+        echo "[+] Aura build and push complete."
 
         echo "[*] Building Malory (Executive Quartet)..."
         docker build \
           -f executive-quartet/malory/Dockerfile \
           -t ${_REPO}/${_SERVICE_MALORY}:latest \
-          -t ${_REPO}/${_SERVICE_MALORY}:latest \
           executive-quartet/malory
-        echo "[+] Malory build complete."
+        docker push ${_REPO}/${_SERVICE_MALORY}:latest
+        echo "[+] Malory build and push complete."
 
         echo "[*] Building Krieger (Executive Quartet)..."
         docker build \
           -f executive-quartet/krieger/Dockerfile \
           -t ${_REPO}/${_SERVICE_KRIEGER}:latest \
-          -t ${_REPO}/${_SERVICE_KRIEGER}:latest \
           executive-quartet/krieger
-        echo "[+] Krieger build complete."
-        echo "[+] Executive Quartet build complete (all 4 agents)."
+        docker push ${_REPO}/${_SERVICE_KRIEGER}:latest
+        echo "[+] Krieger build and push complete."
+        echo "[+] Executive Quartet build and push complete (all 4 agents)."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 10: Build Telegram Bridge
@@ -562,9 +562,9 @@ steps:
         docker build \
           -f telegram-bridge/Dockerfile \
           -t ${_REPO}/${_SERVICE_TELEGRAM}:latest \
-          -t ${_REPO}/${_SERVICE_TELEGRAM}:latest \
           telegram-bridge
-        echo "[+] Telegram Bridge build complete."
+        docker push ${_REPO}/${_SERVICE_TELEGRAM}:latest
+        echo "[+] Telegram Bridge build and push complete."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 11: Build Self-Remediation Engine
@@ -585,9 +585,9 @@ steps:
         docker build \
           -f self-remediation/Dockerfile \
           -t ${_REPO}/${_SERVICE_REMEDIATION}:latest \
-          -t ${_REPO}/${_SERVICE_REMEDIATION}:latest \
           self-remediation
-        echo "[+] Self-Remediation Engine build complete."
+        docker push ${_REPO}/${_SERVICE_REMEDIATION}:latest
+        echo "[+] Self-Remediation Engine build and push complete."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 12: Build Barry Preservation (DO-Lobe Migration)
@@ -611,9 +611,9 @@ steps:
         docker build \
           -f barry-preservation/Dockerfile \
           -t ${_REPO}/${_SERVICE_BARRY}:latest \
-          -t ${_REPO}/${_SERVICE_BARRY}:latest \
           barry-preservation
-        echo "[+] Barry Preservation build complete."
+        docker push ${_REPO}/${_SERVICE_BARRY}:latest
+        echo "[+] Barry Preservation build and push complete."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 13: Deploy Executive Quartet to Cloud Run
@@ -811,14 +811,6 @@ steps:
         npx wrangler deploy
         echo "[+] inference-router Worker deployed successfully."
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Images tracked by this build (Cloud Build uses these for caching / cleanup)
-# ──────────────────────────────────────────────────────────────────────────────
-images:
-  - '${_REPO}/${_SERVICE_INFERENCE}:latest'
-  - '${_REPO}/${_SERVICE_A}:latest'
-  - '${_REPO}/${_SERVICE_B}:latest'
-  - '${_REPO}/${_SERVICE_WEB_INTERFACE_BACKEND}:latest'
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Timeout: 20 minutes (allows for Inference-Tokenomics boot + downstream builds)
