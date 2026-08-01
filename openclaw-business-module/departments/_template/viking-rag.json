@@ -1,0 +1,16 @@
+{
+  "viking_url": "${OPENVIKING_URL}",
+  "mount_point": "viking://",
+  "tiers": {
+    "L0": "abstract_summary",
+    "L1": "overview",
+    "L2": "full_content"
+  },
+  "paths": {
+    "resources": "viking://resources/",
+    "memories": "viking://user/memories/",
+    "sessions": "viking://user/sessions/",
+    "skills": "viking://agent/skills/"
+  },
+  "_protocol": "Protocol B — agents connect to OpenViking by default for hierarchical RAG context"
+}

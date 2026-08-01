@@ -18,7 +18,7 @@ services:
       - ./policy:/policy:ro
       - ledger-a:/var/log/ledger
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -42,7 +42,7 @@ services:
       - ./policy:/policy:ro
       - ledger-b:/var/log/ledger
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/healthz')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -63,7 +63,7 @@ services:
     volumes:
       - ledger-sheryl:/var/log/ledger
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/healthz')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -83,7 +83,7 @@ services:
     volumes:
       - ledger-aura:/var/log/ledger
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8084/healthz')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -101,7 +101,7 @@ services:
     volumes:
       - ledger-malory:/var/log/ledger
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8085/healthz')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -119,7 +119,7 @@ services:
     volumes:
       - ledger-krieger:/var/log/ledger
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/healthz')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -137,7 +137,7 @@ services:
     volumes:
       - ledger-self-remediation:/var/log/ledger
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8087/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/healthz')"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -156,11 +156,50 @@ services:
     volumes:
       - ledger-telegram-bridge:/var/log/ledger
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8088/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/healthz')"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  web-interface-backend:
+    build: ./web-interface/backend
+    image: web-interface-backend:latest
+    container_name: web-interface-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - TRACK_A_URL=http://track-a-control-loop:8080
+      - TRACK_B_URL=http://track-b-actuator:8081
+      - SHERYL_URL=http://sheryl:8083
+      - TELEGRAM_BRIDGE_URL=http://telegram-bridge:8088
+      - AURA_URL=http://aura-agent:8084
+      - MALORY_URL=http://malory:8085
+      - KRIEGER_URL=http://krieger:8086
+      - SELF_REMEDIATION_URL=http://self-remediation:8087
+      - TAVUS_API_KEY=${TAVUS_API_KEY}
+      - API_TOKEN=dev-token
+      - ACCESS_PASSWORD_HASH=${ACCESS_PASSWORD_HASH}
+      - LEDGER_PATH=/var/log/ledger
+    volumes:
+      - ./policy:/app/policy:ro
+      - ledger-web-interface-backend:/var/log/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      sheryl:
+        condition: service_healthy
+      track-a-control-loop:
+        condition: service_healthy
+      track-b-actuator:
+        condition: service_healthy
+      telegram-bridge:
+        condition: service_healthy
 
 volumes:
   ledger-a:
@@ -171,6 +210,7 @@ volumes:
   ledger-krieger:
   ledger-self-remediation:
   ledger-telegram-bridge:
+  ledger-web-interface-backend:
 
 # service: agency-agents-daemon (default OFF — see checkpoint #11)
 # agency-agents-daemon:
