@@ -30,6 +30,13 @@ resource "google_project_iam_member" "track_b_log_writer" {
   member  = "serviceAccount:${google_service_account.core_engine_worker.email}"
 }
 
+# Web Interface Backend — invoker binding for service-to-service auth
+resource "google_project_iam_member" "web_interface_backend_run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.core_engine_worker.email}"
+}
+
 # Service account token creator (needed for identity-based auth between services)
 resource "google_service_account_iam_member" "core_engine_token_creator" {
   service_account_id = google_service_account.core_engine_worker.id

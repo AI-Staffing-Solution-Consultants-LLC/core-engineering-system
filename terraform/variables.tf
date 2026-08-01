@@ -79,3 +79,30 @@ variable "telegram_bridge_image" {
   type        = string
   default     = "placeholder-change-me"
 }
+
+variable "web_interface_backend_image" {
+  description = "Container image URI for Web Interface backend"
+  type        = string
+  default     = "us-central1-docker.pkg.dev/aissc-core-engine-self-dep/core-engine/web-interface-backend:latest"
+}
+
+variable "tavus_api_key" {
+  description = "Tavus API key for Web Interface backend (set via environment or .tfvars, never commit)"
+  type        = string
+  sensitive   = true
+  default     = "placeholder-change-me"
+}
+
+variable "web_interface_access_password_hash" {
+  description = "Bcrypt hash of the access password for Web Interface frontend (set via environment or .tfvars, never commit)"
+  type        = string
+  sensitive   = true
+  default     = "placeholder-change-me"
+}
+
+variable "web_interface_api_token" {
+  description = "API token for Web Interface backend auth middleware (set via environment or .tfvars, never commit)"
+  type        = string
+  sensitive   = true
+  default     = "placeholder-change-me"
+}

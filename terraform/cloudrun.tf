@@ -479,3 +479,113 @@ resource "google_cloud_run_service_iam_member" "telegram_bridge_invoker" {
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
 }
+
+# --- Web Interface Backend ---
+# Publicly reachable from Cloudflare Pages frontend, but still requires auth token.
+# --no-allow-unauthenticated: Constitutional AI enforcement at infra layer.
+# INGRESS_TRAFFIC_ALL: browser-facing backend must accept external HTTPS.
+resource "google_cloud_run_v2_service" "web_interface_backend" {
+  name     = "web-interface-backend"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    containers {
+      image = var.web_interface_backend_image
+      ports {
+        container_port = 3001
+      }
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
+        tcp_socket {
+          port = 3001
+        }
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 3001
+        }
+      }
+
+      env {
+        name  = "LEDGER_PATH"
+        value = "/var/log/ledger"
+      }
+      env {
+        name  = "TRACK_A_URL"
+        value = google_cloud_run_v2_service.track_a.uri
+      }
+      env {
+        name  = "TRACK_B_URL"
+        value = google_cloud_run_v2_service.track_b.uri
+      }
+      env {
+        name  = "SHERYL_URL"
+        value = google_cloud_run_v2_service.sheryl_quartet.uri
+      }
+      env {
+        name  = "TELEGRAM_BRIDGE_URL"
+        value = google_cloud_run_v2_service.telegram_bridge.uri
+      }
+      env {
+        name  = "AURA_URL"
+        value = google_cloud_run_v2_service.aura_quartet.uri
+      }
+      env {
+        name  = "MALORY_URL"
+        value = google_cloud_run_v2_service.malory_quartet.uri
+      }
+      env {
+        name  = "KRIEGER_URL"
+        value = google_cloud_run_v2_service.krieger_quartet.uri
+      }
+      env {
+        name  = "SELF_REMEDIATION_URL"
+        value = google_cloud_run_v2_service.self_remediation.uri
+      }
+      env {
+        name  = "TAVUS_API_KEY"
+        value = var.tavus_api_key
+      }
+      env {
+        name  = "API_TOKEN"
+        value = var.web_interface_api_token
+      }
+      env {
+        name  = "ACCESS_PASSWORD_HASH"
+        value = var.web_interface_access_password_hash
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    service_account = google_service_account.core_engine_worker.email
+  }
+
+  ingress = "INGRESS_TRAFFIC_ALL"
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_cloud_run_service_iam_member" "web_interface_backend_invoker" {
+  location = google_cloud_run_v2_service.web_interface_backend.location
+  project  = google_cloud_run_v2_service.web_interface_backend.project
+  service  = google_cloud_run_v2_service.web_interface_backend.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.core_engine_worker.email}"
+}

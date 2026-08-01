@@ -1,0 +1,13 @@
+{
+  "name": "web-interface-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "E2E integration tests for the Web Interface against the full C-P-A service mesh",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "vitest run --no-file-parallelism"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}
