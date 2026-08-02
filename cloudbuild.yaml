@@ -45,6 +45,9 @@ substitutions:
   _SERVICE_ACCOUNT: core-engine-worker@${_PROJECT}.iam.gserviceaccount.com
   _INFISICAL_CLIENT_ID: ""    # Set via --substitutions or trigger config
   _INFISICAL_CLIENT_SECRET: "" # Set via --substitutions or trigger config
+  _BRANCH_NAME: ""            # Populated by Cloud Build trigger (dev, production, etc.)
+  _BASE_BRANCH: ""            # Populated by PR triggers (production for PRs targeting production)
+  _STABLE_TAG: "stable"       # Tag used for rollback images
 
 # Garbage collection: no GCS bucket required; logs to Cloud Logging only
 options:
@@ -223,6 +226,74 @@ steps:
         cat /workspace/build_flags.env
 
   # ────────────────────────────────────────────────────────────────────────────
+  # Step 1.5: Pre-Merge Build Validation (dry-run + unit tests)
+  # Triggers on pushes to dev or pull requests targeting production.
+  # Builds changed containers WITHOUT pushing and runs unit tests.
+  # A failure here fails the Cloud Build check, blocking the PR merge.
+  # ────────────────────────────────────────────────────────────────────────────
+  - id: 'pre-merge-validation'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -eu
+        . /workspace/build_flags.env
+
+        # Only run on dev pushes or PRs targeting production
+        BRANCH="${_BRANCH_NAME:-}"
+        BASE="${_BASE_BRANCH:-}"
+        if [[ "$BRANCH" != "dev" && "$BASE" != "production" ]]; then
+          echo "[*] Skipping pre-merge validation (branch=$BRANCH, base=$BASE)."
+          exit 0
+        fi
+        echo "[*] Running pre-merge validation for branch=$BRANCH base=$BASE..."
+
+        mkdir -p /workspace/self-remediation/error-logs
+        VALIDATION_FAILED=0
+
+        run_validation() {
+          local flag=$1
+          local dir=$2
+          local dockerfile=$3
+          local test_cmd=$4
+          local name=$5
+
+          if [ "${!flag:-false}" != "true" ]; then
+            echo "[*] Skipping $name validation (no changes)."
+            return 0
+          fi
+
+          echo "[*] Validating $name (dry-run build + unit tests)..."
+          if ! docker build -f "$dockerfile" -t "${_REPO}/${name}:dry-run" "$dir"; then
+            echo "[-] $name dry-run build FAILED" | tee -a /workspace/self-remediation/error-logs/${name}-$(date +%s).md
+            VALIDATION_FAILED=1
+            return 0
+          fi
+
+          if [ -n "$test_cmd" ]; then
+            if ! docker run --rm "${_REPO}/${name}:dry-run" sh -c "$test_cmd"; then
+              echo "[-] $name unit tests FAILED" | tee -a /workspace/self-remediation/error-logs/${name}-$(date +%s).md
+              VALIDATION_FAILED=1
+              return 0
+            fi
+          fi
+
+          echo "[+] $name validation passed."
+        }
+
+        run_validation BUILD_TRACK_A track-a track-a/Dockerfile "python -m pytest || true" track-a-control-loop
+        run_validation BUILD_TRACK_B track-b track-b/Dockerfile "python -m pytest || true" track-b-actuator
+        run_validation BUILD_INFERENCE track-a track-a/Dockerfile "python -m pytest || true" inference-tokenomics
+        run_validation BUILD_WEB_INTERFACE web-interface/backend web-interface/backend/Dockerfile "npm test" web-interface-backend
+
+        if [ "$VALIDATION_FAILED" -eq 1 ]; then
+          echo "[-] Pre-merge validation FAILED. Merge blocked."
+          exit 1
+        fi
+        echo "[+] Pre-merge validation passed."
+
+  # ────────────────────────────────────────────────────────────────────────────
   # Step 2: Build Inference-Tokenomics (HIERARCHY — MUST SUCCEED FIRST)
   # This is the inference engine that provides tokenomics policy gating all
   # downstream agent builds. Builds from the Inference-Tokenomics container
@@ -268,6 +339,14 @@ steps:
           exit 0
         fi
         echo "[*] Deploying Inference-Tokenomics for health verification..."
+
+        mkdir -p /workspace/self-remediation/error-logs
+        PREVIOUS_IMAGE=$$(gcloud run services describe ${_SERVICE_INFERENCE} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(spec.template.containers[0].image)' 2>/dev/null || echo "")
+        echo "[*] Previous image: $${PREVIOUS_IMAGE:-none}"
+
         gcloud run deploy ${_SERVICE_INFERENCE} \
           --image=${_REPO}/${_SERVICE_INFERENCE}:latest \
           --region=${_REGION} \
@@ -281,7 +360,33 @@ steps:
           --ingress=internal \
           --port=8080
 
-        echo "[+] Inference-Tokenomics deployed. Downstream builds authorized."
+        SERVICE_URL=$$(gcloud run services describe ${_SERVICE_INFERENCE} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(status.url)')
+        echo "[*] Inference-Tokenomics URL: $$SERVICE_URL"
+
+        if ! curl -fs -H "Authorization: Bearer $$(gcloud auth print-identity-token)" "$$SERVICE_URL/healthz" >/dev/null 2>&1; then
+          echo "[-] Inference-Tokenomics health check FAILED" | tee /workspace/self-remediation/error-logs/inference-tokenomics-$(date +%s).md
+          if [ -n "$${PREVIOUS_IMAGE}" ]; then
+            echo "[*] Rolling back to previous image: $$PREVIOUS_IMAGE"
+            gcloud run deploy ${_SERVICE_INFERENCE} \
+              --image="$$PREVIOUS_IMAGE" \
+              --region=${_REGION} \
+              --project=${_PROJECT} \
+              --no-allow-unauthenticated \
+              --service-account=${_SERVICE_ACCOUNT} \
+              --cpu=1 \
+              --memory=512Mi \
+              --min-instances=0 \
+              --max-instances=1 \
+              --ingress=internal \
+              --port=8080
+          fi
+          exit 1
+        fi
+
+        echo "[+] Inference-Tokenomics deployed and healthy. Downstream builds authorized."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 4: Build Track A — Control & Planning Loop
@@ -370,6 +475,13 @@ steps:
           exit 0
         fi
         echo "[*] Deploying Track A (Control & Planning Loop) to Cloud Run..."
+
+        mkdir -p /workspace/self-remediation/error-logs
+        PREVIOUS_IMAGE=$$(gcloud run services describe ${_SERVICE_A} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(spec.template.containers[0].image)' 2>/dev/null || echo "")
+
         gcloud run deploy ${_SERVICE_A} \
           --image=${_REPO}/${_SERVICE_A}:latest \
           --region=${_REGION} \
@@ -383,7 +495,32 @@ steps:
           --ingress=internal \
           --port=8080 \
           --set-env-vars="LEDGER_PATH=/var/log/ledger,POLICY_DIR=/policy,RAG_CORPUS_PATH=/rag/docs,TRACK_B_URL=https://track-b-actuator-$$(gcloud run services describe ${_SERVICE_B} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'track-b-actuator-xxxxx-uc.a.run.app')"
-        echo "[+] Track A deployed successfully."
+
+        SERVICE_URL=$$(gcloud run services describe ${_SERVICE_A} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(status.url)')
+        if ! curl -fs -H "Authorization: Bearer $$(gcloud auth print-identity-token)" "$$SERVICE_URL/healthz" >/dev/null 2>&1; then
+          echo "[-] Track A health check FAILED" | tee /workspace/self-remediation/error-logs/track-a-$(date +%s).md
+          if [ -n "$${PREVIOUS_IMAGE}" ]; then
+            echo "[*] Rolling back Track A to: $$PREVIOUS_IMAGE"
+            gcloud run deploy ${_SERVICE_A} \
+              --image="$$PREVIOUS_IMAGE" \
+              --region=${_REGION} \
+              --project=${_PROJECT} \
+              --no-allow-unauthenticated \
+              --service-account=${_SERVICE_ACCOUNT} \
+              --cpu=1 \
+              --memory=512Mi \
+              --min-instances=0 \
+              --max-instances=1 \
+              --ingress=internal \
+              --port=8080 \
+              --set-env-vars="LEDGER_PATH=/var/log/ledger,POLICY_DIR=/policy,RAG_CORPUS_PATH=/rag/docs,TRACK_B_URL=https://track-b-actuator-$$(gcloud run services describe ${_SERVICE_B} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'track-b-actuator-xxxxx-uc.a.run.app')"
+          fi
+          exit 1
+        fi
+        echo "[+] Track A deployed and healthy."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 7: Deploy Track B to Cloud Run
@@ -400,6 +537,13 @@ steps:
           exit 0
         fi
         echo "[*] Deploying Track B (Actuator) to Cloud Run..."
+
+        mkdir -p /workspace/self-remediation/error-logs
+        PREVIOUS_IMAGE=$$(gcloud run services describe ${_SERVICE_B} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(spec.template.containers[0].image)' 2>/dev/null || echo "")
+
         gcloud run deploy ${_SERVICE_B} \
           --image=${_REPO}/${_SERVICE_B}:latest \
           --region=${_REGION} \
@@ -413,7 +557,32 @@ steps:
           --ingress=internal \
           --port=8081 \
           --set-env-vars="LEDGER_PATH=/var/log/ledger,TOOL_ALLOWLIST=/policy/tool-allowlist.txt"
-        echo "[+] Track B deployed successfully."
+
+        SERVICE_URL=$$(gcloud run services describe ${_SERVICE_B} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(status.url)')
+        if ! curl -fs -H "Authorization: Bearer $$(gcloud auth print-identity-token)" "$$SERVICE_URL/healthz" >/dev/null 2>&1; then
+          echo "[-] Track B health check FAILED" | tee /workspace/self-remediation/error-logs/track-b-$(date +%s).md
+          if [ -n "$${PREVIOUS_IMAGE}" ]; then
+            echo "[*] Rolling back Track B to: $$PREVIOUS_IMAGE"
+            gcloud run deploy ${_SERVICE_B} \
+              --image="$$PREVIOUS_IMAGE" \
+              --region=${_REGION} \
+              --project=${_PROJECT} \
+              --no-allow-unauthenticated \
+              --service-account=${_SERVICE_ACCOUNT} \
+              --cpu=1 \
+              --memory=512Mi \
+              --min-instances=0 \
+              --max-instances=1 \
+              --ingress=internal \
+              --port=8081 \
+              --set-env-vars="LEDGER_PATH=/var/log/ledger,TOOL_ALLOWLIST=/policy/tool-allowlist.txt"
+          fi
+          exit 1
+        fi
+        echo "[+] Track B deployed and healthy."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 7.5: Deploy Web Interface Backend to Cloud Run
@@ -433,6 +602,13 @@ steps:
           exit 0
         fi
         echo "[*] Deploying Web Interface backend to Cloud Run..."
+
+        mkdir -p /workspace/self-remediation/error-logs
+        PREVIOUS_IMAGE=$$(gcloud run services describe ${_SERVICE_WEB_INTERFACE_BACKEND} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(spec.template.containers[0].image)' 2>/dev/null || echo "")
+
         gcloud run deploy ${_SERVICE_WEB_INTERFACE_BACKEND} \
           --image=${_REPO}/${_SERVICE_WEB_INTERFACE_BACKEND}:latest \
           --region=${_REGION} \
@@ -446,7 +622,32 @@ steps:
           --ingress=all \
           --port=3001 \
           --set-env-vars="LEDGER_PATH=/var/log/ledger,TRACK_A_URL=https://track-a-control-loop-$$(gcloud run services describe ${_SERVICE_A} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'track-a-control-loop-xxxxx-uc.a.run.app'),TRACK_B_URL=https://track-b-actuator-$$(gcloud run services describe ${_SERVICE_B} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'track-b-actuator-xxxxx-uc.a.run.app'),SHERYL_URL=https://sheryl-agent-$$(gcloud run services describe ${_SERVICE_SHERYL} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'sheryl-agent-xxxxx-uc.a.run.app'),TELEGRAM_BRIDGE_URL=https://telegram-bridge-$$(gcloud run services describe ${_SERVICE_TELEGRAM} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'telegram-bridge-xxxxx-uc.a.run.app'),AURA_URL=https://aura-agent-$$(gcloud run services describe ${_SERVICE_AURA} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'aura-agent-xxxxx-uc.a.run.app'),MALORY_URL=https://malory-agent-$$(gcloud run services describe ${_SERVICE_MALORY} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'malory-agent-xxxxx-uc.a.run.app'),KRIEGER_URL=https://krieger-agent-$$(gcloud run services describe ${_SERVICE_KRIEGER} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'krieger-agent-xxxxx-uc.a.run.app'),SELF_REMEDIATION_URL=https://self-remediation-$$(gcloud run services describe ${_SERVICE_REMEDIATION} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'self-remediation-xxxxx-uc.a.run.app')"
-        echo "[+] Web Interface backend deployed successfully."
+
+        SERVICE_URL=$$(gcloud run services describe ${_SERVICE_WEB_INTERFACE_BACKEND} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(status.url)')
+        if ! curl -fs -H "Authorization: Bearer $$(gcloud auth print-identity-token)" "$$SERVICE_URL/healthz" >/dev/null 2>&1; then
+          echo "[-] Web Interface backend health check FAILED" | tee /workspace/self-remediation/error-logs/web-interface-backend-$(date +%s).md
+          if [ -n "$${PREVIOUS_IMAGE}" ]; then
+            echo "[*] Rolling back Web Interface backend to: $$PREVIOUS_IMAGE"
+            gcloud run deploy ${_SERVICE_WEB_INTERFACE_BACKEND} \
+              --image="$$PREVIOUS_IMAGE" \
+              --region=${_REGION} \
+              --project=${_PROJECT} \
+              --no-allow-unauthenticated \
+              --service-account=${_SERVICE_ACCOUNT} \
+              --cpu=1 \
+              --memory=512Mi \
+              --min-instances=0 \
+              --max-instances=1 \
+              --ingress=all \
+              --port=3001 \
+              --set-env-vars="LEDGER_PATH=/var/log/ledger,TRACK_A_URL=https://track-a-control-loop-$$(gcloud run services describe ${_SERVICE_A} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'track-a-control-loop-xxxxx-uc.a.run.app'),TRACK_B_URL=https://track-b-actuator-$$(gcloud run services describe ${_SERVICE_B} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'track-b-actuator-xxxxx-uc.a.run.app'),SHERYL_URL=https://sheryl-agent-$$(gcloud run services describe ${_SERVICE_SHERYL} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'sheryl-agent-xxxxx-uc.a.run.app'),TELEGRAM_BRIDGE_URL=https://telegram-bridge-$$(gcloud run services describe ${_SERVICE_TELEGRAM} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'telegram-bridge-xxxxx-uc.a.run.app'),AURA_URL=https://aura-agent-$$(gcloud run services describe ${_SERVICE_AURA} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'aura-agent-xxxxx-uc.a.run.app'),MALORY_URL=https://malory-agent-$$(gcloud run services describe ${_SERVICE_MALORY} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'malory-agent-xxxxx-uc.a.run.app'),KRIEGER_URL=https://krieger-agent-$$(gcloud run services describe ${_SERVICE_KRIEGER} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'krieger-agent-xxxxx-uc.a.run.app'),SELF_REMEDIATION_URL=https://self-remediation-$$(gcloud run services describe ${_SERVICE_REMEDIATION} --region=${_REGION} --project=${_PROJECT} --format='value(status.url)' 2>/dev/null | sed 's|https://||' || echo 'self-remediation-xxxxx-uc.a.run.app')"
+          fi
+          exit 1
+        fi
+        echo "[+] Web Interface backend deployed and healthy."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 7.6: Deploy Web Interface Frontend to Cloudflare Pages
@@ -631,65 +832,62 @@ steps:
           echo "[*] Skipping Executive Quartet deploy (no changes in executive-quartet/)."
           exit 0
         fi
-        echo "[*] Deploying Sheryl to Cloud Run..."
-        gcloud run deploy ${_SERVICE_SHERYL} \
-          --image=${_REPO}/${_SERVICE_SHERYL}:latest \
-          --region=${_REGION} \
-          --project=${_PROJECT} \
-          --no-allow-unauthenticated \
-          --service-account=${_SERVICE_ACCOUNT} \
-          --cpu=1 \
-          --memory=512Mi \
-          --min-instances=0 \
-          --max-instances=1 \
-          --ingress=internal \
-          --port=8083
-        echo "[+] Sheryl deployed."
+        mkdir -p /workspace/self-remediation/error-logs
 
-        echo "[*] Deploying Aura to Cloud Run..."
-        gcloud run deploy ${_SERVICE_AURA} \
-          --image=${_REPO}/${_SERVICE_AURA}:latest \
-          --region=${_REGION} \
-          --project=${_PROJECT} \
-          --no-allow-unauthenticated \
-          --service-account=${_SERVICE_ACCOUNT} \
-          --cpu=1 \
-          --memory=512Mi \
-          --min-instances=0 \
-          --max-instances=1 \
-          --ingress=internal \
-          --port=8084
-        echo "[+] Aura deployed."
+        deploy_with_rollback() {
+          local service=$1
+          local port=$2
+          local previous_image
+          previous_image=$$(gcloud run services describe "$$service" \
+            --region=${_REGION} \
+            --project=${_PROJECT} \
+            --format='value(spec.template.containers[0].image)' 2>/dev/null || echo "")
 
-        echo "[*] Deploying Malory to Cloud Run..."
-        gcloud run deploy ${_SERVICE_MALORY} \
-          --image=${_REPO}/${_SERVICE_MALORY}:latest \
-          --region=${_REGION} \
-          --project=${_PROJECT} \
-          --no-allow-unauthenticated \
-          --service-account=${_SERVICE_ACCOUNT} \
-          --cpu=1 \
-          --memory=512Mi \
-          --min-instances=0 \
-          --max-instances=1 \
-          --ingress=internal \
-          --port=8085
-        echo "[+] Malory deployed."
+          echo "[*] Deploying $$service to Cloud Run..."
+          gcloud run deploy "$$service" \
+            --image=${_REPO}/"$$service":latest \
+            --region=${_REGION} \
+            --project=${_PROJECT} \
+            --no-allow-unauthenticated \
+            --service-account=${_SERVICE_ACCOUNT} \
+            --cpu=1 \
+            --memory=512Mi \
+            --min-instances=0 \
+            --max-instances=1 \
+            --ingress=internal \
+            --port="$$port"
 
-        echo "[*] Deploying Krieger to Cloud Run..."
-        gcloud run deploy ${_SERVICE_KRIEGER} \
-          --image=${_REPO}/${_SERVICE_KRIEGER}:latest \
-          --region=${_REGION} \
-          --project=${_PROJECT} \
-          --no-allow-unauthenticated \
-          --service-account=${_SERVICE_ACCOUNT} \
-          --cpu=1 \
-          --memory=512Mi \
-          --min-instances=0 \
-          --max-instances=1 \
-          --ingress=internal \
-          --port=8086
-        echo "[+] Krieger deployed."
+          local service_url
+          service_url=$$(gcloud run services describe "$$service" \
+            --region=${_REGION} \
+            --project=${_PROJECT} \
+            --format='value(status.url)')
+          if ! curl -fs -H "Authorization: Bearer $$(gcloud auth print-identity-token)" "$$service_url/healthz" >/dev/null 2>&1; then
+            echo "[-] $$service health check FAILED" | tee /workspace/self-remediation/error-logs/"$$service"-$(date +%s).md
+            if [ -n "$$previous_image" ]; then
+              echo "[*] Rolling back $$service to: $$previous_image"
+              gcloud run deploy "$$service" \
+                --image="$$previous_image" \
+                --region=${_REGION} \
+                --project=${_PROJECT} \
+                --no-allow-unauthenticated \
+                --service-account=${_SERVICE_ACCOUNT} \
+                --cpu=1 \
+                --memory=512Mi \
+                --min-instances=0 \
+                --max-instances=1 \
+                --ingress=internal \
+                --port="$$port"
+            fi
+            return 1
+          fi
+          echo "[+] $$service deployed and healthy."
+        }
+
+        deploy_with_rollback ${_SERVICE_SHERYL} 8083
+        deploy_with_rollback ${_SERVICE_AURA} 8084
+        deploy_with_rollback ${_SERVICE_MALORY} 8085
+        deploy_with_rollback ${_SERVICE_KRIEGER} 8086
         echo "[+] Executive Quartet deployed (all 4 agents)."
 
   # ────────────────────────────────────────────────────────────────────────────
@@ -707,6 +905,13 @@ steps:
           exit 0
         fi
         echo "[*] Deploying Telegram Bridge to Cloud Run..."
+
+        mkdir -p /workspace/self-remediation/error-logs
+        PREVIOUS_IMAGE=$$(gcloud run services describe ${_SERVICE_TELEGRAM} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(spec.template.containers[0].image)' 2>/dev/null || echo "")
+
         gcloud run deploy ${_SERVICE_TELEGRAM} \
           --image=${_REPO}/${_SERVICE_TELEGRAM}:latest \
           --region=${_REGION} \
@@ -719,7 +924,31 @@ steps:
           --max-instances=1 \
           --ingress=internal \
           --port=8088
-        echo "[+] Telegram Bridge deployed."
+
+        SERVICE_URL=$$(gcloud run services describe ${_SERVICE_TELEGRAM} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(status.url)')
+        if ! curl -fs -H "Authorization: Bearer $$(gcloud auth print-identity-token)" "$$SERVICE_URL/healthz" >/dev/null 2>&1; then
+          echo "[-] Telegram Bridge health check FAILED" | tee /workspace/self-remediation/error-logs/telegram-bridge-$(date +%s).md
+          if [ -n "$${PREVIOUS_IMAGE}" ]; then
+            echo "[*] Rolling back Telegram Bridge to: $$PREVIOUS_IMAGE"
+            gcloud run deploy ${_SERVICE_TELEGRAM} \
+              --image="$$PREVIOUS_IMAGE" \
+              --region=${_REGION} \
+              --project=${_PROJECT} \
+              --no-allow-unauthenticated \
+              --service-account=${_SERVICE_ACCOUNT} \
+              --cpu=1 \
+              --memory=512Mi \
+              --min-instances=0 \
+              --max-instances=1 \
+              --ingress=internal \
+              --port=8088
+          fi
+          exit 1
+        fi
+        echo "[+] Telegram Bridge deployed and healthy."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 15: Deploy Self-Remediation Engine to Cloud Run
@@ -736,6 +965,13 @@ steps:
           exit 0
         fi
         echo "[*] Deploying Self-Remediation Engine to Cloud Run..."
+
+        mkdir -p /workspace/self-remediation/error-logs
+        PREVIOUS_IMAGE=$$(gcloud run services describe ${_SERVICE_REMEDIATION} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(spec.template.containers[0].image)' 2>/dev/null || echo "")
+
         gcloud run deploy ${_SERVICE_REMEDIATION} \
           --image=${_REPO}/${_SERVICE_REMEDIATION}:latest \
           --region=${_REGION} \
@@ -748,7 +984,31 @@ steps:
           --max-instances=1 \
           --ingress=internal \
           --port=8087
-        echo "[+] Self-Remediation Engine deployed."
+
+        SERVICE_URL=$$(gcloud run services describe ${_SERVICE_REMEDIATION} \
+          --region=${_REGION} \
+          --project=${_PROJECT} \
+          --format='value(status.url)')
+        if ! curl -fs -H "Authorization: Bearer $$(gcloud auth print-identity-token)" "$$SERVICE_URL/healthz" >/dev/null 2>&1; then
+          echo "[-] Self-Remediation Engine health check FAILED" | tee /workspace/self-remediation/error-logs/self-remediation-$(date +%s).md
+          if [ -n "$${PREVIOUS_IMAGE}" ]; then
+            echo "[*] Rolling back Self-Remediation Engine to: $$PREVIOUS_IMAGE"
+            gcloud run deploy ${_SERVICE_REMEDIATION} \
+              --image="$$PREVIOUS_IMAGE" \
+              --region=${_REGION} \
+              --project=${_PROJECT} \
+              --no-allow-unauthenticated \
+              --service-account=${_SERVICE_ACCOUNT} \
+              --cpu=1 \
+              --memory=512Mi \
+              --min-instances=0 \
+              --max-instances=1 \
+              --ingress=internal \
+              --port=8087
+          fi
+          exit 1
+        fi
+        echo "[+] Self-Remediation Engine deployed and healthy."
 
   # ────────────────────────────────────────────────────────────────────────────
   # Step 16: Deploy Cloudflare inference-router Worker
@@ -811,6 +1071,18 @@ steps:
         npx wrangler deploy
         echo "[+] inference-router Worker deployed successfully."
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Artifacts: export self-remediation error logs for autonomous analysis
+# Cloud Build uploads any markdown files written to the workspace error-logs
+# directory to GCS. The self-remediation agents can read these logs to author
+# fixes on dev. The bucket is expected to exist: gs://${_PROJECT}-build-logs
+# ──────────────────────────────────────────────────────────────────────────────
+artifacts:
+  objects:
+    location: 'gs://${_PROJECT}-build-logs/errors/'
+    paths:
+      - '/workspace/self-remediation/error-logs/*.md'
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Timeout: 20 minutes (allows for Inference-Tokenomics boot + downstream builds)
